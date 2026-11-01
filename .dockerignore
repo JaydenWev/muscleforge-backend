@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.git/
+.vs/
+.idea/
+.env
+.env.*
+TestResults/
+artifacts/
+**/*.pfx
+**/*.key

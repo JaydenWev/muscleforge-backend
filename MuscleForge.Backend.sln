@@ -1,0 +1,42 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MuscleForge.Api", "src\MuscleForge.Api\MuscleForge.Api.csproj", "{F4AD70BD-246B-57F7-BB5D-84B069DB5954}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MuscleForge.Core", "src\MuscleForge.Core\MuscleForge.Core.csproj", "{0E2A68BA-9F8B-57E9-88EA-A7195FE78CF9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MuscleForge.Infrastructure", "src\MuscleForge.Infrastructure\MuscleForge.Infrastructure.csproj", "{7ED9D6E3-B271-5065-85B4-8ABE4FB898F8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MuscleForge.UnitTests", "tests\MuscleForge.UnitTests\MuscleForge.UnitTests.csproj", "{B11FEA31-43A2-5697-9976-1AFB0E6C23EB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MuscleForge.IntegrationTests", "tests\MuscleForge.IntegrationTests\MuscleForge.IntegrationTests.csproj", "{AD7317C0-B252-5B7A-A0F3-8147C600DACB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F4AD70BD-246B-57F7-BB5D-84B069DB5954}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F4AD70BD-246B-57F7-BB5D-84B069DB5954}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F4AD70BD-246B-57F7-BB5D-84B069DB5954}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F4AD70BD-246B-57F7-BB5D-84B069DB5954}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0E2A68BA-9F8B-57E9-88EA-A7195FE78CF9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E2A68BA-9F8B-57E9-88EA-A7195FE78CF9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0E2A68BA-9F8B-57E9-88EA-A7195FE78CF9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0E2A68BA-9F8B-57E9-88EA-A7195FE78CF9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7ED9D6E3-B271-5065-85B4-8ABE4FB898F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7ED9D6E3-B271-5065-85B4-8ABE4FB898F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7ED9D6E3-B271-5065-85B4-8ABE4FB898F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7ED9D6E3-B271-5065-85B4-8ABE4FB898F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B11FEA31-43A2-5697-9976-1AFB0E6C23EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B11FEA31-43A2-5697-9976-1AFB0E6C23EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B11FEA31-43A2-5697-9976-1AFB0E6C23EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B11FEA31-43A2-5697-9976-1AFB0E6C23EB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AD7317C0-B252-5B7A-A0F3-8147C600DACB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AD7317C0-B252-5B7A-A0F3-8147C600DACB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AD7317C0-B252-5B7A-A0F3-8147C600DACB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AD7317C0-B252-5B7A-A0F3-8147C600DACB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,38 @@
+{
+  "info": {
+    "title": "MuscleForge API",
+    "version": "0.1.0-dev"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/api/v1/status": {
+      "get": {
+        "operationId": "GetApiStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "apiVersion": {
+                      "type": "string"
+                    },
+                    "service": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "apiVersion",
+                    "service"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          }
+        }
+      }
+    }
+  }
+}

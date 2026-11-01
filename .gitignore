@@ -24,3 +24,7 @@ appsettings.*.Local.json
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# Python tooling cache
+__pycache__/
+*.pyc
