@@ -27,9 +27,9 @@ public sealed class ApiTests
     [Theory]
     [InlineData(true, HttpStatusCode.OK)]
     [InlineData(false, HttpStatusCode.ServiceUnavailable)]
-    public async Task ReadinessReflectsDatabaseAvailability(bool connected, HttpStatusCode expected)
+    public async Task ReadinessReflectsDatabaseReadiness(bool ready, HttpStatusCode expected)
     {
-        await using var factory = CreateFactory(connected);
+        await using var factory = CreateFactory(ready);
         using var client = factory.CreateClient();
         var cancellationToken = TestContext.Current.CancellationToken;
         using var response = await client.GetAsync("/health/ready", cancellationToken);
@@ -48,7 +48,7 @@ public sealed class ApiTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    private static WebApplicationFactory<Program> CreateFactory(bool connected) =>
+    private static WebApplicationFactory<Program> CreateFactory(bool ready) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
@@ -60,12 +60,12 @@ public sealed class ApiTests
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<IDatabaseProbe>();
-                services.AddSingleton<IDatabaseProbe>(new FakeProbe(connected));
+                services.AddSingleton<IDatabaseProbe>(new FakeProbe(ready));
             });
         });
 
-    private sealed class FakeProbe(bool connected) : IDatabaseProbe
+    private sealed class FakeProbe(bool ready) : IDatabaseProbe
     {
-        public Task<bool> CanConnectAsync(CancellationToken cancellationToken) => Task.FromResult(connected);
+        public Task<bool> IsReadyAsync(CancellationToken cancellationToken) => Task.FromResult(ready);
     }
 }

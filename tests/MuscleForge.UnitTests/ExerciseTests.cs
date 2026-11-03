@@ -12,8 +12,30 @@ public sealed class ExerciseTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
+    [InlineData("\t\r\n")]
+    [InlineData("\u00a0\u2003\u202f\u3000")]
     public void AnExerciseRequiresAName(string name) =>
         Assert.Throws<ArgumentException>(() => new Exercise(Guid.NewGuid(), name, "Barbell"));
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("\t\r\n")]
+    [InlineData("\u00a0\u2003\u202f\u3000")]
+    public void AnExerciseRequiresEquipment(string equipment) =>
+        Assert.Throws<ArgumentException>(() => new Exercise(Guid.NewGuid(), "Squat", equipment));
+
+    [Fact]
+    public void AnExerciseDefaultsToExternalWeightAndRepetitions()
+    {
+        var exercise = new Exercise(Guid.NewGuid(), "Squat", "Barbell");
+        Assert.Equal(ExerciseTrackingType.ExternalWeightAndReps, exercise.TrackingType);
+    }
+
+    [Fact]
+    public void UnsupportedTrackingTypesAreRejected() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Exercise(Guid.NewGuid(), "Squat", "Barbell", (ExerciseTrackingType)1));
 
     [Fact]
     public void FailedRenamePreservesBothPreviousValues()

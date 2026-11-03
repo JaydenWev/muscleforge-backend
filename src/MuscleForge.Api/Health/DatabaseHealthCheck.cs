@@ -10,7 +10,7 @@ public sealed class DatabaseHealthCheck(IDatabaseProbe database) : IHealthCheck
     {
         try
         {
-            return await database.CanConnectAsync(cancellationToken)
+            return await database.IsReadyAsync(cancellationToken)
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Unhealthy();
         }
