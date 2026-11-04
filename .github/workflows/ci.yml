@@ -45,6 +45,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      - name: Restore projects for host migration tooling
+        run: dotnet restore src/MuscleForge.Api/MuscleForge.Api.csproj
       - name: Build container
         run: docker build -t muscleforge-backend:ci .
       - name: Create isolated development configuration
