@@ -6,7 +6,7 @@ ASP.NET Core API for MuscleForge, a personal workout tracker. Companion reposito
 
 The initial foundation contains independent API, Core, and Infrastructure projects; a PostgreSQL/EF Core context prepared for Identity; an exercise domain model; health endpoints; a versioned status contract; tests; and container/CI configuration.
 
-This is the first part of milestone 1. Identity and personal-exercise schema migrations are included; authentication endpoints, owner provisioning, and exercise endpoints are next. There is no account registration or workout data endpoint yet. Readiness requires connectivity and the exact migration history expected by this API build; a reachable but unmigrated, outdated, or unrecognized schema is not ready.
+This is the first part of milestone 1. Identity and personal-exercise schema migrations and owner administration commands are included; authentication and exercise endpoints are next. There is no account registration or workout data endpoint yet. Readiness requires connectivity and the exact migration history expected by this API build; a reachable but unmigrated, outdated, or unrecognized schema is not ready.
 
 See the [architecture baseline](docs/architecture.md), [toolchain](docs/toolchain.md), and [foundation decision](docs/decisions/0001-initial-foundation.md).
 
@@ -77,6 +77,59 @@ dotnet ef migrations script --idempotent --output artifacts/migrations.sql --pro
 
 After a successful update, retry `http://localhost:5187/health/ready` for Compose or `https://localhost:7243/health/ready` for the SDK profile. A 503 response contains no migration identifiers or connection diagnostics. Readiness compares migration history; real PostgreSQL tests and the pending-model check verify the model/migration contract.
 
+## Provision and maintain the owner account
+
+Owner administration runs as a command mode of the existing API executable. Apply the migrations explicitly first and configure the same target connection string used by the API. These commands do not start an HTTP listener, migrate the database, or seed exercises. Exercise seeding belongs to MF-12; HTTP login and refresh belong to MF-11.
+
+For local development, configure the API's connection-string user secret as shown above, then run:
+
+```bash
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/MuscleForge.Api -c Release --no-launch-profile -- owner create --email owner@example.test
+```
+
+Enter and confirm the password at the hidden terminal prompt. Passwords require at least 12 characters, including an uppercase letter, lowercase letter, digit and non-alphanumeric character. The command uses ASP.NET Core Identity's validators and password hasher, stores the email as the username, and requires unique email addresses. Use the same Identity registration and policy for future login endpoints.
+
+For an already-published deployment, use its existing secret connection-string configuration and run the published executable:
+
+```bash
+dotnet /app/MuscleForge.Api.dll owner create --email owner@example.test
+dotnet /app/MuscleForge.Api.dll owner --help
+```
+
+To use the existing local Compose configuration with an interactive terminal:
+
+```bash
+docker compose run --rm --no-deps -it api owner create --email owner@example.test
+```
+
+For automation, explicitly opt into reading one password line from standard input. Supply it from a protected deployment secret file; keep secret files outside the repository and restrict their permissions:
+
+```bash
+dotnet /app/MuscleForge.Api.dll owner create --email owner@example.test --password-stdin < /run/secrets/muscleforge-owner-password
+```
+
+The password limit is 4096 characters. A newline ends the input and is not part of the password; spaces are preserved. Redirected input without `--password-stdin` is rejected when a new password is required. Do not put passwords in command arguments, shell history, source files, or logs. The commands emit fixed administrative messages and never print passwords, password hashes, security stamps or connection details. They use the API's standard configuration and Development user secrets, with administrative arguments excluded from configuration parsing.
+
+Repeating creation for the same normalized email reports that the account already exists, succeeds without reading a password, and leaves its ID, password, security stamp and personal data intact. The command does not reset existing accounts or replace personal data.
+
+After suspected credential compromise, reset the account security stamp using the same configured target database:
+
+```bash
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/MuscleForge.Api -c Release --no-launch-profile -- owner reset-security-stamp --email owner@example.test
+```
+
+This changes the account security stamp while preserving its password and personal data. ASP.NET Core Identity's built-in refresh endpoint validates that stamp, so refresh sessions issued with the old stamp are rejected when the authentication endpoints are implemented in MF-11. Already-issued access tokens expire normally; this is not immediate access-token revocation or a per-device session-management system. See the framework's [refresh implementation](https://github.com/dotnet/aspnetcore/blob/v10.0.14/src/Identity/Core/src/IdentityApiEndpointRouteBuilderExtensions.cs) and [access-token handler](https://github.com/dotnet/aspnetcore/blob/v10.0.14/src/Security/Authentication/BearerToken/src/BearerTokenHandler.cs).
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | Account created, account already exists, stamp reset, or help displayed |
+| 2 | Invalid arguments, input, email, or password validation |
+| 3 | Account not found when resetting its security stamp |
+| 4 | Configuration, schema readiness, database, or administration failure |
+| 130 | Command cancelled |
+
+A failure never triggers automatic migration or account deletion. Check the target configuration and schema separately; connection diagnostics are intentionally excluded from command output. No public registration route is exposed.
+
 ## Debug the API in Docker with Visual Studio
 
 Use Visual Studio 2026 with the **ASP.NET and web development** workload and **Container development tools** installed, plus Docker Desktop running Linux containers.
@@ -133,3 +186,7 @@ For a frontend update, commit the backend change, deliberately copy the contract
 MF-8 acceptance was verified on Linux ARM64 with SDK 10.0.403 and PostgreSQL 17.11. The Release build passes with warnings treated as errors; 13 unit tests and 27 integration tests pass with zero skips, including 23 real-PostgreSQL cases. The pending-model and OpenAPI contract checks pass.
 
 The Release runtime image builds successfully. In an isolated container network, the API returned readiness 503 against a reachable empty database, then 200 after the explicit EF CLI step applied `20261103150257_InitialIdentityAndExercises`; the status endpoint remained available. Test containers/databases are isolated from local development data. Visual Studio debugger attachment remains a separate manual check in Visual Studio.
+
+For MF-10, the combined Release build passes with warnings treated as errors. All 28 tests that do not require PostgreSQL pass (13 unit tests, 4 existing HTTP cases, and 11 new CLI cases), with no skips. The OpenAPI drift and pending-model checks pass; there is no HTTP or schema change. Implementation and verification were delegated separately, and both the manager and an independent reviewer reviewed the combined changes, including a corrected stdin cancellation issue.
+
+Sixteen new real-PostgreSQL CLI cases cover provisioning, password validation, concurrent/repeat creation, personal-data preservation, security-stamp reset, input privacy and schema prerequisites. Execution of these cases is currently blocked by Docker access in the managed workspace; they are included in the existing CI test command and are not silently skipped. A real terminal check of hidden password entry, confirmation and Ctrl+C is also pending. These limitations must be resolved before MF-10 is accepted as Done.

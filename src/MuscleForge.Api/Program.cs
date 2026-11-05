@@ -1,10 +1,17 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using MuscleForge.Api.Administration;
 using MuscleForge.Api.Contracts;
 using MuscleForge.Api.Health;
 using MuscleForge.Core.Persistence;
 using MuscleForge.Infrastructure.Persistence;
+
+if (args is ["owner", ..])
+{
+    Environment.ExitCode = await OwnerAdministration.RunAsync(args[1..]);
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
