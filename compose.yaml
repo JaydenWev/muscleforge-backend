@@ -22,6 +22,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Database: Host=database;Port=5432;Database=muscleforge;Username=muscleforge;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      Owner__Email: ${OWNER_EMAIL:?Set OWNER_EMAIL in .env}
+      Owner__Password: ${OWNER_PASSWORD:?Set OWNER_PASSWORD in .env}
     ports:
       - "127.0.0.1:5187:8080"
     depends_on:

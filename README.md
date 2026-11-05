@@ -6,7 +6,7 @@ ASP.NET Core API for MuscleForge, a personal workout tracker. Companion reposito
 
 The initial foundation contains independent API, Core, and Infrastructure projects; a PostgreSQL/EF Core context prepared for Identity; an exercise domain model; health endpoints; a versioned status contract; tests; and container/CI configuration.
 
-This is the first part of milestone 1. Identity and personal-exercise schema migrations are included; authentication endpoints, owner provisioning, and exercise endpoints are next. There is no account registration or workout data endpoint yet. Readiness requires connectivity and the exact migration history expected by this API build; a reachable but unmigrated, outdated, or unrecognized schema is not ready.
+This is the first part of milestone 1. Identity and personal-exercise schema migrations, configured owner provisioning, and an account maintenance command are included; authentication and exercise endpoints are next. There is no account registration or workout data endpoint yet. Readiness requires connectivity and the exact migration history expected by this API build; a reachable but unmigrated, outdated, or unrecognized schema is not ready.
 
 See the [architecture baseline](docs/architecture.md), [toolchain](docs/toolchain.md), and [foundation decision](docs/decisions/0001-initial-foundation.md).
 
@@ -20,7 +20,7 @@ See the [architecture baseline](docs/architecture.md), [toolchain](docs/toolchai
 
 ```bash
 cp .env.example .env
-# Set a unique POSTGRES_PASSWORD in .env before continuing.
+# Set POSTGRES_PASSWORD, OWNER_EMAIL and OWNER_PASSWORD in .env before continuing.
 docker compose up -d --wait database
 dotnet tool restore
 dotnet user-secrets set 'ConnectionStrings:Database' 'Host=localhost;Port=5432;Database=muscleforge;Username=muscleforge;Password=YOUR_LOCAL_PASSWORD' --project src/MuscleForge.Api
@@ -31,7 +31,7 @@ curl --fail http://localhost:5187/health/ready
 curl --fail http://localhost:5187/api/v1/status
 ```
 
-Use the same local password in `.env` and the user-secret connection string. On an unmigrated database, `/health/live` and `/api/v1/status` work, but `/health/ready` returns 503 until the explicit migration step succeeds. API startup and health requests never create or migrate the schema.
+Use the same PostgreSQL password in `.env` and the user-secret connection string. After the explicit migration step, starting the API provisions the account from `OWNER_EMAIL` and `OWNER_PASSWORD`. The configured bootstrap refuses to start against an unmigrated or incompatible database. SDK runs without owner configuration can still serve liveness/status while readiness returns 503 for an unusable schema. API startup and health requests never create or migrate the schema.
 
 Compose binds both ports to loopback. This is local development infrastructure. A deployed API needs the HTTPS proxy, Data Protection key persistence when authentication is added, backups, and explicit migrations in the architecture. The runtime API image contains no SDK or EF CLI; apply migrations from the host SDK or a separate deployment step, not by running `dotnet ef` in the API container.
 
@@ -77,11 +77,52 @@ dotnet ef migrations script --idempotent --output artifacts/migrations.sql --pro
 
 After a successful update, retry `http://localhost:5187/health/ready` for Compose or `https://localhost:7243/health/ready` for the SDK profile. A 503 response contains no migration identifiers or connection diagnostics. Readiness compares migration history; real PostgreSQL tests and the pending-model check verify the model/migration contract.
 
+## Provision and maintain the owner account
+
+Set the account credentials in your local `.env` file, copied from [.env.example](.env.example):
+
+```dotenv
+POSTGRES_PASSWORD=
+OWNER_EMAIL=you@example.com
+OWNER_PASSWORD=
+```
+
+Fill both password values with your own passwords. `POSTGRES_PASSWORD` authenticates the backend to PostgreSQL; `OWNER_PASSWORD` is the initial password for your MuscleForge app login. Compose requires these settings and maps the owner values to `Owner__Email` and `Owner__Password` in the API container. Keep `.env` local and restrict access to it; it is excluded from Git and the Docker build context. Use single-quoted values when passwords contain `$`, `${...}`, or significant spaces so Compose preserves them literally; see [Docker's environment-file syntax](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/#env-file-syntax).
+
+Apply the migrations as described above, then run `docker compose up --build -d api`. Before accepting HTTP requests, the API creates the owner with Identity validation and password hashing. Passwords must contain 12–4096 characters, including uppercase, lowercase, a digit and a non-alphanumeric character; password spaces are preserved. The email is used as the username. No separate account-creation command is required, and the old `owner create` command is removed.
+
+**These settings are for initial creation.** Restarting the API preserves the existing normalized account, password, security stamp and personal data. Changing `OWNER_PASSWORD` does not reset an existing password. Changing `OWNER_EMAIL` to an address that does not match an existing account fails rather than silently creating another bootstrap owner. Concurrent startup is serialized through a short PostgreSQL transaction and advisory lock, with a ten-second lock wait limit.
+
+Incomplete/invalid configuration, failed Identity validation or an incompatible schema stops configured startup with a generic error, without printing credentials or original exception details. Bootstrap never applies migrations or seeds exercises. Exercise seeding belongs to MF-12; HTTP login and refresh belong to MF-11. The shared `AddMuscleForgeIdentity()` registration supplies the same password policy for those endpoints.
+
+The SDK does not parse `.env`. For SDK or IDE runs, supply `Owner:Email` and `Owner:Password` through .NET user secrets or the equivalent `Owner__Email` and `Owner__Password` process environment variables. Leaving both values unset/empty skips bootstrap; supplying only one fails. OpenAPI export clears owner configuration so contract generation never creates an account.
+
+After suspected credential compromise, the maintenance command can reset the account security stamp using the same configured database:
+
+```bash
+docker compose run --rm --no-deps api owner reset-security-stamp --email you@example.com
+# Or use the published backend with its deployment connection-string configuration:
+dotnet /app/MuscleForge.Api.dll owner reset-security-stamp --email you@example.com
+dotnet /app/MuscleForge.Api.dll owner --help
+```
+
+This changes the account security stamp while preserving its password and personal data. ASP.NET Core Identity's built-in refresh endpoint validates that stamp, so refresh sessions issued with the old stamp are rejected when the authentication endpoints are implemented in MF-11. Already-issued access tokens expire normally; this is not immediate access-token revocation or a per-device session-management system. See the framework's [refresh implementation](https://github.com/dotnet/aspnetcore/blob/v10.0.14/src/Identity/Core/src/IdentityApiEndpointRouteBuilderExtensions.cs) and [access-token handler](https://github.com/dotnet/aspnetcore/blob/v10.0.14/src/Security/Authentication/BearerToken/src/BearerTokenHandler.cs).
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | Security stamp reset or help displayed |
+| 2 | Invalid maintenance arguments or email |
+| 3 | Account not found when resetting its security stamp |
+| 4 | Configuration, schema readiness, database, or administration failure |
+| 130 | Command cancelled |
+
+These exit codes apply to maintenance commands. Configured API bootstrap failures stop the process before HTTP serving. A failure never triggers automatic migration or account deletion. No public registration route is exposed.
+
 ## Debug the API in Docker with Visual Studio
 
 Use Visual Studio 2026 with the **ASP.NET and web development** workload and **Container development tools** installed, plus Docker Desktop running Linux containers.
 
-1. Copy `.env.example` to `.env` and set a unique `POSTGRES_PASSWORD` if you have not already done so.
+1. Copy `.env.example` to `.env` if needed, then set `POSTGRES_PASSWORD`, `OWNER_EMAIL` and `OWNER_PASSWORD`. Compose validates all three even when starting only the database.
 2. From the repository root, start PostgreSQL and wait for it to become healthy:
 
    ```bash
@@ -103,6 +144,8 @@ Use Visual Studio 2026 with the **ASP.NET and web development** workload and **C
 
 The Docker profile joins the `muscleforge_default` network created by Compose and exposes HTTP only on `127.0.0.1:5187`. If you previously started the API with Compose, run `docker compose stop api` before F5 to free that port. Use the default Compose project name `muscleforge` for this workflow.
 
+Visual Studio's standalone Docker profile uses mounted Development user secrets rather than Compose's owner environment mapping. Provision the account with Compose first, or configure `Owner:Email` and `Owner:Password` in the API's Development user secrets when you want that profile to bootstrap it.
+
 Visual Studio's Fast mode builds Debug assemblies on the host, mounts them into the Dockerfile's `base` stage, and manages the debugger. Stop debugging with **Shift+F5**; PostgreSQL stays running. Use `docker compose stop database` when finished, or `docker compose down` to remove the Compose containers while retaining database data.
 
 For a Debug image built entirely in Docker, use `docker build --build-arg BUILD_CONFIGURATION=Debug -t muscleforge-backend:debug .`. A normal `docker build` or `docker compose up --build` builds Release.
@@ -112,6 +155,7 @@ References: [Visual Studio container launch settings](https://learn.microsoft.co
 ## Build and check
 
 ```bash
+dotnet tool restore
 dotnet build MuscleForge.Backend.sln -c Release
 dotnet test MuscleForge.Backend.sln -c Release --no-build
 dotnet ef migrations has-pending-model-changes --project src/MuscleForge.Infrastructure --startup-project src/MuscleForge.Api --configuration Release -- --environment Development
@@ -119,6 +163,8 @@ python3 scripts/export-openapi.py --check
 ```
 
 Domain tests cover owner requirements, supported tracking, validation, atomic edits, and archive timestamps. HTTP tests use an injected probe to check status, liveness/readiness, and unavailable registration. Migration tests use Testcontainers with isolated real PostgreSQL to verify schema/readiness, explicit migration behavior, constraints and round trips; Docker must be available, and these checks are not silently skipped. CI also applies migrations explicitly before checking the API container's readiness. Authenticated resource ownership tests will accompany the corresponding endpoints.
+
+Owner-bootstrap tests launch the actual API with environment-only credentials against isolated PostgreSQL. They verify creation/hash validation, repeated and concurrent startup, preservation of personal data, conflicting owner configuration, safe errors and schema prerequisites. Tooling cases exercise the restored EF CLI and Python exporter with owner configuration present, proving migration and contract work do not provision an account. Maintenance tests cover security-stamp reset and removal of the creation CLI. Interactive password input and its terminal-only tests have been removed.
 
 Restore generates `packages.lock.json` files. Commit the resolved files alongside dependency changes. CI enforces existing lockfiles.
 
@@ -133,3 +179,7 @@ For a frontend update, commit the backend change, deliberately copy the contract
 MF-8 acceptance was verified on Linux ARM64 with SDK 10.0.403 and PostgreSQL 17.11. The Release build passes with warnings treated as errors; 13 unit tests and 27 integration tests pass with zero skips, including 23 real-PostgreSQL cases. The pending-model and OpenAPI contract checks pass.
 
 The Release runtime image builds successfully. In an isolated container network, the API returned readiness 503 against a reachable empty database, then 200 after the explicit EF CLI step applied `20261103150257_InitialIdentityAndExercises`; the status endpoint remained available. Test containers/databases are isolated from local development data. Visual Studio debugger attachment remains a separate manual check in Visual Studio.
+
+The MF-10 environment-configured revision passes the Release solution build with warnings treated as errors and all 81 tests (13 unit and 68 integration, including 44 real-PostgreSQL cases), with zero skips on Linux. Actual EF CLI migration with owner configuration succeeds without creating an account, and OpenAPI export with ambient owner configuration leaves an empty database untouched. The OpenAPI contract and model/migration snapshot are unchanged.
+
+The Release image builds successfully. An isolated Compose project using a synthetic `.env` created one hashed owner account and reached healthy readiness. The container preserved literal password characters, including `$` and spaces. Recreating the API with a changed bootstrap password preserved the account, stored password hash and security stamp and stayed healthy. The temporary containers, volume and network were removed afterward; the owner's real `.env` was not read or changed. Implementation/testing were delegated separately, and the manager and independent reviewer reviewed the result. GitHub CI and pull-request integration remain pending; MF-10 records the current handoff.

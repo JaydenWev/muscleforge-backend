@@ -1,10 +1,17 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using MuscleForge.Api.Administration;
 using MuscleForge.Api.Contracts;
 using MuscleForge.Api.Health;
 using MuscleForge.Core.Persistence;
 using MuscleForge.Infrastructure.Persistence;
+
+if (args is ["owner", ..])
+{
+    Environment.ExitCode = await OwnerAdministration.RunAsync(args[1..]);
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +46,17 @@ var app = builder.Build();
 if (string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Database")))
 {
     throw new InvalidOperationException("Configure ConnectionStrings:Database before starting the API.");
+}
+
+var ownerBootstrap = await OwnerAccountBootstrapper.EnsureCreatedAsync(
+    app.Configuration, app.Lifetime.ApplicationStopping);
+if (ownerBootstrap == OwnerBootstrapResult.Created)
+{
+    app.Logger.LogInformation("Owner account created from configured startup credentials.");
+}
+else if (ownerBootstrap == OwnerBootstrapResult.AlreadyExists)
+{
+    app.Logger.LogInformation("Configured owner account already exists; no changes made.");
 }
 
 app.UseExceptionHandler();
