@@ -7,15 +7,23 @@ public sealed class Exercise
 
     private Exercise() { }
 
-    public Exercise(Guid ownerId, string name, string equipment)
+    public Exercise(Guid ownerId, string name, string equipment,
+        ExerciseTrackingType trackingType = ExerciseTrackingType.ExternalWeightAndReps)
     {
         if (ownerId == Guid.Empty)
         {
             throw new ArgumentException("An exercise requires an owner.", nameof(ownerId));
         }
 
+        if (trackingType != ExerciseTrackingType.ExternalWeightAndReps)
+        {
+            throw new ArgumentOutOfRangeException(nameof(trackingType), trackingType,
+                "Only external weight and repetitions are supported.");
+        }
+
         Id = Guid.NewGuid();
         OwnerId = ownerId;
+        TrackingType = trackingType;
         Rename(name, equipment);
     }
 
@@ -23,6 +31,7 @@ public sealed class Exercise
     public Guid OwnerId { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public string Equipment { get; private set; } = string.Empty;
+    public ExerciseTrackingType TrackingType { get; private set; }
     public DateTimeOffset? ArchivedAt { get; private set; }
 
     public void Rename(string name, string equipment)

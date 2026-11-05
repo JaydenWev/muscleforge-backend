@@ -21,8 +21,13 @@ jobs:
         with:
           python-version: '3.12'
       - run: dotnet restore MuscleForge.Backend.sln
+      - run: dotnet tool restore
       - run: dotnet build MuscleForge.Backend.sln -c Release --no-restore
       - run: dotnet test MuscleForge.Backend.sln -c Release --no-build --logger trx
+      - name: Verify model and migration snapshot match
+        env:
+          ConnectionStrings__Database: Host=localhost;Database=muscleforge;Username=muscleforge
+        run: dotnet ef migrations has-pending-model-changes --project src/MuscleForge.Infrastructure --startup-project src/MuscleForge.Api --configuration Release --no-build
       - run: python3 scripts/export-openapi.py --check
       - uses: actions/upload-artifact@v4
         if: always()
@@ -37,12 +42,28 @@ jobs:
     needs: build-and-test
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Restore projects for host migration tooling
+        run: dotnet restore src/MuscleForge.Api/MuscleForge.Api.csproj
       - name: Build container
         run: docker build -t muscleforge-backend:ci .
       - name: Create isolated development configuration
         run: printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)" > .env
-      - name: Start API and real PostgreSQL
-        run: docker compose up --build -d
+      - name: Start real PostgreSQL
+        run: docker compose up -d --wait database
+      - run: dotnet tool restore
+      - name: Apply migrations explicitly before API startup
+        shell: bash
+        run: |
+          set -a
+          source .env
+          set +a
+          export ConnectionStrings__Database="Host=localhost;Port=5432;Database=muscleforge;Username=muscleforge;Password=$POSTGRES_PASSWORD"
+          dotnet ef database update --project src/MuscleForge.Infrastructure --startup-project src/MuscleForge.Api --configuration Release
+      - name: Start API with migrated database
+        run: docker compose up --build -d api
       - name: Verify database readiness
         run: curl --fail --retry 20 --retry-all-errors --retry-delay 2 http://localhost:5187/health/ready
       - name: Stop containers
