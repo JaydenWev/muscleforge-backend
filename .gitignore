@@ -5,6 +5,7 @@ artifacts/
 TestResults/
 
 # Local IDE settings
+.codex/
 .vs/
 .idea/
 *.user
