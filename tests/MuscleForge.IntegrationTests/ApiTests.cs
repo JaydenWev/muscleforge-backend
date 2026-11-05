@@ -55,7 +55,9 @@ public sealed class ApiTests
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:Database"] = "Host=localhost;Database=muscleforge;Username=test"
+                    ["ConnectionStrings:Database"] = "Host=localhost;Database=muscleforge;Username=test",
+                    ["Owner:Email"] = null,
+                    ["Owner:Password"] = null
                 }));
             builder.ConfigureServices(services =>
             {

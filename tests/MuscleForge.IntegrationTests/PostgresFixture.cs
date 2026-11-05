@@ -48,7 +48,12 @@ public sealed class TestDatabase(string name, string connectionString, string ad
         {
             builder.UseEnvironment("Testing");
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
-                new Dictionary<string, string?> { ["ConnectionStrings:Database"] = connectionString }));
+                new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:Database"] = connectionString,
+                    ["Owner:Email"] = null,
+                    ["Owner:Password"] = null
+                }));
         });
 
     public async Task<NpgsqlConnection> OpenConnectionAsync(CancellationToken cancellationToken)

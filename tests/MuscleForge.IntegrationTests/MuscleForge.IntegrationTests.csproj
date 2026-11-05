@@ -13,7 +13,4 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="../../scripts/check-owner-terminal.py" Link="check-owner-terminal.py" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
 </Project>

@@ -75,7 +75,13 @@ def main():
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--port", type=int, default=5188)
     args = parser.parse_args()
-    env = dict(os.environ, ASPNETCORE_ENVIRONMENT="Development")
+    env = dict(os.environ, ASPNETCORE_ENVIRONMENT="Development", DOTNET_ENVIRONMENT="Development")
+    # Contract export must not provision an owner from developer configuration.
+    for key in list(env):
+        if key.replace("__", ":").lower() in {"owner:email", "owner:password"}:
+            del env[key]
+    env["Owner__Email"] = ""
+    env["Owner__Password"] = ""
     env.setdefault("ConnectionStrings__Database", "Host=localhost;Database=muscleforge;Username=muscleforge")
     address = f"http://127.0.0.1:{args.port}"
     with tempfile.TemporaryFile() as log:

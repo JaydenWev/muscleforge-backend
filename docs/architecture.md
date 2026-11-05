@@ -18,7 +18,7 @@ Install a signed Android APK for personal use initially. Play Store publication 
 
 ### First usable release: milestones 1–2
 
-- Owner account provisioned through a secure CLI; no public registration.
+- Owner account provisioned from deployment environment configuration (`OWNER_EMAIL` and `OWNER_PASSWORD` in Docker Compose's ignored `.env` file); no public registration. The initial password is hashed through Identity, and subsequent startups preserve the existing account and password.
 - Personal exercise catalog with common seeded exercises and custom exercises.
 - Workout templates with ordered exercises and prescribed sets.
 - Start from a template or an empty workout.

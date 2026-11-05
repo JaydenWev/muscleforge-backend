@@ -48,6 +48,17 @@ if (string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Database"))
     throw new InvalidOperationException("Configure ConnectionStrings:Database before starting the API.");
 }
 
+var ownerBootstrap = await OwnerAccountBootstrapper.EnsureCreatedAsync(
+    app.Configuration, app.Lifetime.ApplicationStopping);
+if (ownerBootstrap == OwnerBootstrapResult.Created)
+{
+    app.Logger.LogInformation("Owner account created from configured startup credentials.");
+}
+else if (ownerBootstrap == OwnerBootstrapResult.AlreadyExists)
+{
+    app.Logger.LogInformation("Configured owner account already exists; no changes made.");
+}
+
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
