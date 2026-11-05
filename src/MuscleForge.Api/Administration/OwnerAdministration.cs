@@ -228,6 +228,9 @@ internal static class OwnerAdministration
             return null;
         }
 
+        // Initialize terminal input before publishing the prompt. An immediate paste
+        // must not reach the terminal while its default echo mode is still enabled.
+        _ = Console.KeyAvailable;
         Console.Error.Write("Password: ");
         var password = await ReadHiddenLineAsync(cancellationToken);
         Console.Error.WriteLine();
@@ -236,6 +239,7 @@ internal static class OwnerAdministration
             return null;
         }
 
+        _ = Console.KeyAvailable;
         Console.Error.Write("Confirm password: ");
         var confirmation = await ReadHiddenLineAsync(cancellationToken);
         Console.Error.WriteLine();
