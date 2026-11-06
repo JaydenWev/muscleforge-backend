@@ -4,6 +4,7 @@ using Microsoft.OpenApi;
 using MuscleForge.Api.Administration;
 using MuscleForge.Api.Contracts;
 using MuscleForge.Api.Health;
+using MuscleForge.Api.Standards;
 using MuscleForge.Core.Persistence;
 using MuscleForge.Infrastructure.Persistence;
 
@@ -15,16 +16,8 @@ if (args is ["owner", ..])
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 256 * 1024);
-builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
-{
-    context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
-    context.ProblemDetails.Extensions["code"] = context.ProblemDetails.Status switch
-    {
-        404 => "resource_not_found",
-        _ => "request_failed"
-    };
-});
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = ApiStandards.MaxTransportBodyBytes);
+builder.Services.AddApiStandards();
 builder.Services.AddOpenApi("v1", options =>
 {
     options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_0;
@@ -59,8 +52,7 @@ else if (ownerBootstrap == OwnerBootstrapResult.AlreadyExists)
     app.Logger.LogInformation("Configured owner account already exists; no changes made.");
 }
 
-app.UseExceptionHandler();
-app.UseStatusCodePages();
+app.UseApiStandards();
 
 // Production HTTPS terminates at the reverse proxy. Local HTTPS uses the launch profile.
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
@@ -69,7 +61,8 @@ app.MapGet("/api/v1/status", () => TypedResults.Ok(new ApiStatusResponse
 {
     Service = "MuscleForge",
     ApiVersion = "v1"
-})).WithName("GetApiStatus").WithTags("System");
+})).WithName("GetApiStatus").WithTags("System")
+    .Produces<ApiProblem>(StatusCodes.Status500InternalServerError, "application/problem+json");
 
 if (app.Environment.IsDevelopment())
 {

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -46,6 +47,36 @@ public sealed class ApiTests
         using var response = await client.PostAsJsonAsync(
             "/api/v1/auth/register", new { email = "test@example.test" }, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UnknownProgramRouteUsesTheProblemContractEvenForUnsupportedAccept()
+    {
+        await using var factory = CreateFactory(true);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/missing");
+        request.Headers.Accept.ParseAdd("application/xml");
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(404, body.RootElement.GetProperty("status").GetInt32());
+        Assert.Equal("resource_not_found", body.RootElement.GetProperty("code").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(body.RootElement.GetProperty("type").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(body.RootElement.GetProperty("title").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(body.RootElement.GetProperty("traceId").GetString()));
+    }
+
+    [Fact]
+    public async Task ProgramDoesNotAllowWildcardCors()
+    {
+        await using var factory = CreateFactory(true);
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Options, "/api/v1/status");
+        request.Headers.Add("Origin", "https://example.test");
+        request.Headers.Add("Access-Control-Request-Method", "GET");
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        Assert.False(response.Headers.Contains("Access-Control-Allow-Origin"));
     }
 
     private static WebApplicationFactory<Program> CreateFactory(bool ready) =>
