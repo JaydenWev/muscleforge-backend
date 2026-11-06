@@ -52,7 +52,13 @@ jobs:
       - name: Create isolated development configuration
         run: |
           umask 077
-          printf 'POSTGRES_PASSWORD=%s\nOWNER_EMAIL=ci-owner@example.test\nOWNER_PASSWORD=%sAa1!\n' "$(openssl rand -hex 24)" "$(openssl rand -hex 24)" > .env
+          printf 'POSTGRES_PASSWORD=%s\nOWNER_EMAIL=ci-owner@example.test\nOWNER_PASSWORD=%sAa1!\nDATA_PROTECTION_CERTIFICATE_PASSWORD=%s\n' "$(openssl rand -hex 24)" "$(openssl rand -hex 24)" "$(openssl rand -hex 24)" > .env
+          mkdir -p .secrets
+          export DATA_PROTECTION_CERTIFICATE_PASSWORD="$(sed -n 's/^DATA_PROTECTION_CERTIFICATE_PASSWORD=//p' .env)"
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout .secrets/key.pem -out .secrets/cert.pem -days 2 -subj '/CN=MuscleForge CI' 2>/dev/null
+          openssl pkcs12 -export -out .secrets/dataprotection.pfx -inkey .secrets/key.pem -in .secrets/cert.pem -passout env:DATA_PROTECTION_CERTIFICATE_PASSWORD
+          rm .secrets/key.pem .secrets/cert.pem
+          chmod 644 .secrets/dataprotection.pfx
       - name: Start real PostgreSQL
         run: docker compose up -d --wait database
       - run: dotnet tool restore

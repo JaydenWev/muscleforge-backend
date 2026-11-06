@@ -5,6 +5,7 @@
 .idea/
 .env
 .env.*
+.secrets/
 TestResults/
 artifacts/
 **/*.pfx

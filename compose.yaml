@@ -24,14 +24,24 @@ services:
       ConnectionStrings__Database: Host=database;Port=5432;Database=muscleforge;Username=muscleforge;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       Owner__Email: ${OWNER_EMAIL:?Set OWNER_EMAIL in .env}
       Owner__Password: ${OWNER_PASSWORD:?Set OWNER_PASSWORD in .env}
+      DataProtection__KeysPath: /var/lib/muscleforge/keys
+      DataProtection__CertificatePath: /run/secrets/dataprotection.pfx
+      DataProtection__CertificatePassword: ${DATA_PROTECTION_CERTIFICATE_PASSWORD:?Set DATA_PROTECTION_CERTIFICATE_PASSWORD in .env}
     ports:
       - "127.0.0.1:5187:8080"
     depends_on:
       database:
         condition: service_healthy
     read_only: true
+    volumes:
+      - protection-keys:/var/lib/muscleforge/keys
+      - type: bind
+        source: ${DATA_PROTECTION_CERTIFICATE_FILE:-./.secrets/dataprotection.pfx}
+        target: /run/secrets/dataprotection.pfx
+        read_only: true
     tmpfs:
       - /tmp
 
 volumes:
   database:
+  protection-keys:
