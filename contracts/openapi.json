@@ -30,6 +30,41 @@
               }
             },
             "description": "HTTP 200"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "format": "int32",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "status",
+                    "title",
+                    "traceId",
+                    "type"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 500"
           }
         }
       }
