@@ -18,8 +18,7 @@ SCHEMA_KEYS = {"type", "format", "properties", "required", "items", "enum", "nul
 
 def normalize(document):
     """Inline schema references; exclude host URLs and documentation-only metadata."""
-    if document.get("security"):
-        raise ValueError("Extend exporter security handling before adding authenticated operations")
+    security_schemes = document.get("components", {}).get("securitySchemes", {})
 
     def schema(value, ancestors=()):
         if isinstance(value, bool):
@@ -54,9 +53,13 @@ def normalize(document):
         for method, operation in item.items():
             if method not in {"get", "post", "put", "delete", "patch", "head", "options"}:
                 raise ValueError(f"Unsupported path metadata: {method}")
-            result = {key: operation[key] for key in ("operationId", "parameters", "security") if key in operation}
-            if "requestBody" in operation or "parameters" in operation or "security" in operation:
-                raise ValueError("Extend exporter and client generator before adding authenticated or parameterized endpoints")
+            result = {key: operation[key] for key in ("operationId", "security") if key in operation}
+            if "parameters" in operation:
+                raise ValueError("Extend exporter parameter handling before adding parameterized endpoints")
+            if "requestBody" in operation:
+                body = operation["requestBody"]
+                result["requestBody"] = {"required": body.get("required", False), "content": {
+                    mime: {"schema": schema(value["schema"])} for mime, value in body["content"].items()}}
             responses = {}
             for code, response in operation["responses"].items():
                 entry = {"description": f"HTTP {code}"}
@@ -67,7 +70,12 @@ def normalize(document):
             result["responses"] = responses
             operations[method] = result
         paths[path] = operations
-    return {"openapi": "3.0.3", "info": {key: document["info"][key] for key in ("title", "version")}, "paths": paths}
+    result = {"openapi": "3.0.3", "info": {key: document["info"][key] for key in ("title", "version")}, "paths": paths}
+    if security_schemes:
+        result["components"] = {"securitySchemes": security_schemes}
+    if "security" in document:
+        result["security"] = document["security"]
+    return result
 
 
 def main():
@@ -78,10 +86,13 @@ def main():
     env = dict(os.environ, ASPNETCORE_ENVIRONMENT="Development", DOTNET_ENVIRONMENT="Development")
     # Contract export must not provision an owner from developer configuration.
     for key in list(env):
-        if key.replace("__", ":").lower() in {"owner:email", "owner:password"}:
+        if key.replace("__", ":").lower() in {"owner:email", "owner:password", "dataprotection:keyspath", "dataprotection:certificatepath", "dataprotection:certificatepassword"}:
             del env[key]
     env["Owner__Email"] = ""
     env["Owner__Password"] = ""
+    env["DataProtection__KeysPath"] = ""
+    env["DataProtection__CertificatePath"] = ""
+    env["DataProtection__CertificatePassword"] = ""
     env.setdefault("ConnectionStrings__Database", "Host=localhost;Database=muscleforge;Username=muscleforge")
     address = f"http://127.0.0.1:{args.port}"
     with tempfile.TemporaryFile() as log:

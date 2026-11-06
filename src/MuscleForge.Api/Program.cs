@@ -1,4 +1,9 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication.BearerToken;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using MuscleForge.Api.Authentication;
+using MuscleForge.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using MuscleForge.Api.Administration;
@@ -18,6 +23,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = ApiStandards.MaxTransportBodyBytes);
 builder.Services.AddApiStandards();
+builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.AddAuthDataProtection();
+builder.Services.AddAuthentication(IdentityConstants.BearerScheme).AddBearerToken(IdentityConstants.BearerScheme, options =>
+{
+    options.BearerTokenExpiration = TimeSpan.FromMinutes(15);
+    options.RefreshTokenExpiration = TimeSpan.FromDays(14);
+});
+builder.Services.AddAuthorization();
+builder.Services.AddMuscleForgeIdentity().AddSignInManager();
+builder.Services.AddAuthRateLimits();
 builder.Services.AddOpenApi("v1", options =>
 {
     options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_0;
@@ -26,6 +41,15 @@ builder.Services.AddOpenApi("v1", options =>
         document.Info.Title = "MuscleForge API";
         document.Info.Version = "0.1.0-dev";
         document.Servers = [];
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+        document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme { Type = SecuritySchemeType.Http, Scheme = "bearer" };
+        return Task.CompletedTask;
+    });
+    options.AddOperationTransformer((operation, context, _) =>
+    {
+        if (context.Description.RelativePath == "api/v1/auth/me")
+            operation.Security = [new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", context.Document)] = [] }];
         return Task.CompletedTask;
     });
 });
@@ -41,6 +65,8 @@ if (string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Database"))
     throw new InvalidOperationException("Configure ConnectionStrings:Database before starting the API.");
 }
 
+app.ValidateAuthDataProtection();
+
 var ownerBootstrap = await OwnerAccountBootstrapper.EnsureCreatedAsync(
     app.Configuration, app.Lifetime.ApplicationStopping);
 if (ownerBootstrap == OwnerBootstrapResult.Created)
@@ -52,7 +78,12 @@ else if (ownerBootstrap == OwnerBootstrapResult.AlreadyExists)
     app.Logger.LogInformation("Configured owner account already exists; no changes made.");
 }
 
+app.UseRouting();
 app.UseApiStandards();
+app.UseAuthentication();
+app.UseRateLimiter();
+app.UseAuthorization();
+app.MapAuthEndpoints();
 
 // Production HTTPS terminates at the reverse proxy. Local HTTPS uses the launch profile.
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
