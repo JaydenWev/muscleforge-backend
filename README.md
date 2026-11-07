@@ -6,7 +6,9 @@ ASP.NET Core API for MuscleForge, a personal workout tracker. Companion reposito
 
 The initial foundation contains independent API, Core, and Infrastructure projects; a PostgreSQL/EF Core context prepared for Identity; an exercise domain model; health endpoints; a versioned status contract; tests; and container/CI configuration.
 
-This is the first part of milestone 1. Identity and personal-exercise schema migrations, configured owner provisioning, and an account maintenance command are included; authentication and exercise endpoints are next. There is no account registration or workout data endpoint yet. Readiness requires connectivity and the exact migration history expected by this API build; a reachable but unmigrated, outdated, or unrecognized schema is not ready.
+This is the first part of milestone 1. Identity and personal-exercise schema migrations, configured owner provisioning, an account maintenance command, and bearer login/refresh/current-account endpoints are included. Exercise endpoints are next. There is no account registration or workout data endpoint yet. Readiness requires connectivity and the exact migration history expected by this API build; a reachable but unmigrated, outdated, or unrecognized schema is not ready.
+
+See [authentication setup and contract](docs/authentication.md) for token behavior and one-time certificate setup. Configure `DATA_PROTECTION_CERTIFICATE_PASSWORD` and create the PFX before starting Compose; the key volume and certificate must be preserved across restarts.
 
 See the [architecture baseline](docs/architecture.md), [toolchain](docs/toolchain.md), and [foundation decision](docs/decisions/0001-initial-foundation.md).
 
@@ -22,7 +24,8 @@ The common [API error and validation contract](docs/api-errors.md) defines probl
 
 ```bash
 cp .env.example .env
-# Set POSTGRES_PASSWORD, OWNER_EMAIL and OWNER_PASSWORD in .env before continuing.
+# Set POSTGRES_PASSWORD, OWNER_EMAIL, OWNER_PASSWORD and DATA_PROTECTION_CERTIFICATE_PASSWORD in .env.
+# Create the PFX as described in docs/authentication.md before starting the API.
 docker compose up -d --wait database
 dotnet tool restore
 dotnet user-secrets set 'ConnectionStrings:Database' 'Host=localhost;Port=5432;Database=muscleforge;Username=muscleforge;Password=YOUR_LOCAL_PASSWORD' --project src/MuscleForge.Api
@@ -35,9 +38,9 @@ curl --fail http://localhost:5187/api/v1/status
 
 Use the same PostgreSQL password in `.env` and the user-secret connection string. After the explicit migration step, starting the API provisions the account from `OWNER_EMAIL` and `OWNER_PASSWORD`. The configured bootstrap refuses to start against an unmigrated or incompatible database. SDK runs without owner configuration can still serve liveness/status while readiness returns 503 for an unusable schema. API startup and health requests never create or migrate the schema.
 
-Compose binds both ports to loopback. This is local development infrastructure. A deployed API needs the HTTPS proxy, Data Protection key persistence when authentication is added, backups, and explicit migrations in the architecture. The runtime API image contains no SDK or EF CLI; apply migrations from the host SDK or a separate deployment step, not by running `dotnet ef` in the API container.
+Compose binds both ports to loopback. This is local development infrastructure. A deployed API needs the HTTPS proxy, the protected-key configuration below, backups, and explicit migrations in the architecture. The runtime API image contains no SDK or EF CLI; apply migrations from the host SDK or a separate deployment step, not by running `dotnet ef` in the API container.
 
-`docker compose down` retains the database volume. `docker compose down -v` deletes its data.
+`docker compose down` retains the database volume. `docker compose down -v` deletes the database and authentication key volumes.
 
 ## Run the API from the SDK
 
@@ -95,7 +98,7 @@ Apply the migrations as described above, then run `docker compose up --build -d 
 
 **These settings are for initial creation.** Restarting the API preserves the existing normalized account, password, security stamp and personal data. Changing `OWNER_PASSWORD` does not reset an existing password. Changing `OWNER_EMAIL` to an address that does not match an existing account fails rather than silently creating another bootstrap owner. Concurrent startup is serialized through a short PostgreSQL transaction and advisory lock, with a ten-second lock wait limit.
 
-Incomplete/invalid configuration, failed Identity validation or an incompatible schema stops configured startup with a generic error, without printing credentials or original exception details. Bootstrap never applies migrations or seeds exercises. Exercise seeding belongs to MF-12; HTTP login and refresh belong to MF-11. The shared `AddMuscleForgeIdentity()` registration supplies the same password policy for those endpoints.
+Incomplete/invalid configuration, failed Identity validation or an incompatible schema stops configured startup with a generic error, without printing credentials or original exception details. Bootstrap never applies migrations or seeds exercises. Exercise seeding belongs to MF-12; HTTP login and refresh are described in [authentication.md](docs/authentication.md). The shared `AddMuscleForgeIdentity()` registration supplies the same password policy for those endpoints.
 
 The SDK does not parse `.env`. For SDK or IDE runs, supply `Owner:Email` and `Owner:Password` through .NET user secrets or the equivalent `Owner__Email` and `Owner__Password` process environment variables. Leaving both values unset/empty skips bootstrap; supplying only one fails. OpenAPI export clears owner configuration so contract generation never creates an account.
 
@@ -108,7 +111,7 @@ dotnet /app/MuscleForge.Api.dll owner reset-security-stamp --email you@example.c
 dotnet /app/MuscleForge.Api.dll owner --help
 ```
 
-This changes the account security stamp while preserving its password and personal data. ASP.NET Core Identity's built-in refresh endpoint validates that stamp, so refresh sessions issued with the old stamp are rejected when the authentication endpoints are implemented in MF-11. Already-issued access tokens expire normally; this is not immediate access-token revocation or a per-device session-management system. See the framework's [refresh implementation](https://github.com/dotnet/aspnetcore/blob/v10.0.14/src/Identity/Core/src/IdentityApiEndpointRouteBuilderExtensions.cs) and [access-token handler](https://github.com/dotnet/aspnetcore/blob/v10.0.14/src/Security/Authentication/BearerToken/src/BearerTokenHandler.cs).
+This changes the account security stamp while preserving its password and personal data. The refresh endpoint validates that stamp, so refresh sessions issued with the old stamp are rejected. Already-issued access tokens expire normally; this is not immediate access-token revocation or a per-device session-management system. See the framework's [refresh implementation](https://github.com/dotnet/aspnetcore/blob/v10.0.14/src/Identity/Core/src/IdentityApiEndpointRouteBuilderExtensions.cs) and [access-token handler](https://github.com/dotnet/aspnetcore/blob/v10.0.14/src/Security/Authentication/BearerToken/src/BearerTokenHandler.cs).
 
 | Exit code | Meaning |
 | --- | --- |
@@ -124,7 +127,7 @@ These exit codes apply to maintenance commands. Configured API bootstrap failure
 
 Use Visual Studio 2026 with the **ASP.NET and web development** workload and **Container development tools** installed, plus Docker Desktop running Linux containers.
 
-1. Copy `.env.example` to `.env` if needed, then set `POSTGRES_PASSWORD`, `OWNER_EMAIL` and `OWNER_PASSWORD`. Compose validates all three even when starting only the database.
+1. Copy `.env.example` to `.env` if needed, then set `POSTGRES_PASSWORD`, `OWNER_EMAIL` and `OWNER_PASSWORD`. Also set `DATA_PROTECTION_CERTIFICATE_PASSWORD` and follow the certificate setup above; Compose validates all required settings even when starting only the database.
 2. From the repository root, start PostgreSQL and wait for it to become healthy:
 
    ```bash
@@ -172,7 +175,7 @@ Restore generates `packages.lock.json` files. Commit the resolved files alongsid
 
 ## API contract
 
-After a route/DTO change, build Release and run `python3 scripts/export-openapi.py`. It starts a temporary local development API, reads framework-generated OpenAPI, inlines schemas, and removes host/documentation metadata. CI checks the canonical `contracts/openapi.json` snapshot for drift. The exporter currently rejects authenticated or parameterized operations until their handling is implemented.
+After a route/DTO change, build Release and run `python3 scripts/export-openapi.py`. It starts a temporary local development API, reads framework-generated OpenAPI, inlines schemas, and removes host/documentation metadata. CI checks the canonical `contracts/openapi.json` snapshot for drift. The exporter supports authentication request bodies and bearer security metadata; parameterized operations remain an explicit MF-13 extension. The frontend stays pinned to its existing snapshot until its generator is updated.
 
 For a frontend update, commit the backend change, deliberately copy the contract, and record that backend commit and SHA-256 in its `contracts/source.json`. Frontend builds never fetch a running backend or another checkout. Breaking-change comparison and versioned release artifacts are required before the first supported app release.
 
@@ -187,3 +190,5 @@ The MF-10 environment-configured revision passes the Release solution build with
 The Release image builds successfully. An isolated Compose project using a synthetic `.env` created one hashed owner account and reached healthy readiness. The container preserved literal password characters, including `$` and spaces. Recreating the API with a changed bootstrap password preserved the account, stored password hash and security stamp and stayed healthy. The temporary containers, volume and network were removed afterward; the owner's real `.env` was not read or changed. Implementation/testing were delegated separately, and the manager and independent reviewer reviewed the result. MF-10 was merged through PR #3 with passing PR/main CI.
 
 MF-9 passes the Release build with warnings treated as errors and all 111 tests (13 unit and 98 integration, zero skips). The suite includes 44 real-PostgreSQL cases and HTTP checks through Kestrel/TestServer for DTO validation, errors, auth challenges, body limits, cancellation and safe logs. The exact 256 KiB chunked-body boundary is covered after separating Kestrel's transport allowance from the decoded-body cap. The OpenAPI drift and pending-model checks pass, and the Release Docker image builds. The existing 200 status response is unchanged; the contract adds its shared 500 problem schema. No frontend contract copy or client-generation change is required for the current status client; authenticated/error-consuming clients remain MF-13. PR CI and integration are tracked in MF-9.
+
+MF-11 passes the Release solution build with warnings treated as errors (zero warnings/errors) and all 120 tests (13 unit, 107 integration, zero skips). PostgreSQL-backed authentication checks cover login, refresh, stable account identity, generic credential errors, lockout, token expiry, stamp invalidation, per-IP throttling and safe logs. Encrypted keys preserve access and refresh tokens across a host restart; independent keys reject both. Production refuses missing key configuration. OpenAPI drift and EF pending-model checks pass, and the Release container builds. Android sign-in, generated-client adoption and deployed TLS/proxy verification remain MF-14, MF-13 and MF-43/MF-45 respectively.

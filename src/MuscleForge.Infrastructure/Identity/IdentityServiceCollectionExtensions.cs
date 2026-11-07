@@ -6,11 +6,13 @@ namespace MuscleForge.Infrastructure.Identity;
 
 public static class IdentityServiceCollectionExtensions
 {
-    // Reuse this policy when the bearer-only sign-in endpoints are added.
+    // Shared by environment bootstrap, maintenance and bearer sign-in.
     public static IdentityBuilder AddMuscleForgeIdentity(this IServiceCollection services) =>
         services.AddIdentityCore<ApplicationUser>(options =>
         {
             options.User.RequireUniqueEmail = true;
             options.Password.RequiredLength = 12;
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
         }).AddEntityFrameworkStores<MuscleForgeDbContext>();
 }

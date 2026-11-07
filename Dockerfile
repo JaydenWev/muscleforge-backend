@@ -2,6 +2,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0.14 AS base
 WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
+RUN mkdir -p /var/lib/muscleforge/keys && chown "$APP_UID:$APP_UID" /var/lib/muscleforge/keys && chmod 700 /var/lib/muscleforge/keys
 USER $APP_UID
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0.403 AS build

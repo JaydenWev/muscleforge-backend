@@ -12,6 +12,7 @@ TestResults/
 *.suo
 
 # Local credentials and configuration
+.secrets/
 .env
 .env.*
 !.env.example
