@@ -28,7 +28,21 @@ jobs:
         env:
           ConnectionStrings__Database: Host=localhost;Database=muscleforge;Username=muscleforge
         run: dotnet ef migrations has-pending-model-changes --project src/MuscleForge.Infrastructure --startup-project src/MuscleForge.Api --configuration Release --no-build
+      - run: python3 -m unittest discover -s tests/contract_tooling -v
       - run: python3 scripts/export-openapi.py --check
+      - run: python3 scripts/check-contract-compatibility.py
+      - name: Package contract with source provenance
+        id: contract
+        run: |
+          python3 scripts/package-contract.py --revision "$GITHUB_SHA" --output artifacts/contract
+          echo "api_version=$(python3 -c 'import json; print(json.load(open("artifacts/contract/manifest.json"))["apiVersion"])')" >> "$GITHUB_OUTPUT"
+          echo "document_version=$(python3 -c 'import json; print(json.load(open("artifacts/contract/manifest.json"))["documentVersion"])')" >> "$GITHUB_OUTPUT"
+      - name: Upload versioned contract
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-${{ steps.contract.outputs.api_version }}-${{ steps.contract.outputs.document_version }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/contract/
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:
