@@ -24,6 +24,8 @@ def normalize(document):
         if isinstance(value, bool):
             return value
         if "$ref" in value:
+            if set(value) != {"$ref"}:
+                raise ValueError("Schema reference siblings are unsupported")
             reference = value["$ref"]
             if reference in ancestors or not reference.startswith("#/"):
                 raise ValueError(f"Unsupported recursive or external schema: {reference}")
@@ -47,25 +49,65 @@ def normalize(document):
                 result[key] = sorted(item) if key == "required" else item
         return result
 
+    def check_keys(value, allowed, where):
+        unknown = set(value) - allowed
+        if unknown:
+            raise ValueError(f"Unsupported {where} metadata: {sorted(unknown)}")
+
+    def parameter(value):
+        check_keys(value, {"name", "in", "required", "style", "explode", "schema",
+                           "description", "example", "examples", "deprecated"}, "parameter")
+        if value.get("in") not in {"path", "query"} or "schema" not in value:
+            raise ValueError("Only schema-based path and query parameters are supported")
+        if value["in"] == "path" and not value.get("required", False):
+            raise ValueError("Path parameters must be required")
+        result = {key: value[key] for key in ("name", "in", "required", "style", "explode") if key in value}
+        result["schema"] = schema(value["schema"])
+        return result
+
+    def content(value):
+        result = {}
+        for mime, media in value.items():
+            check_keys(media, {"schema", "example", "examples"}, "media type")
+            result[mime] = {"schema": schema(media["schema"])}
+        return result
+
     paths = {}
     for path, item in document["paths"].items():
         operations = {}
+        common_parameters = item.get("parameters", [])
         for method, operation in item.items():
+            if method == "parameters":
+                continue
             if method not in {"get", "post", "put", "delete", "patch", "head", "options"}:
                 raise ValueError(f"Unsupported path metadata: {method}")
             result = {key: operation[key] for key in ("operationId", "security") if key in operation}
-            if "parameters" in operation:
-                raise ValueError("Extend exporter parameter handling before adding parameterized endpoints")
+            check_keys(operation, {"operationId", "security", "parameters", "requestBody", "responses",
+                                   "tags", "summary", "description", "deprecated"}, "operation")
+            if common_parameters or "parameters" in operation:
+                combined = {}
+                for p in common_parameters + operation.get("parameters", []):
+                    normalized = parameter(p)
+                    combined[(normalized["in"], normalized["name"])] = normalized
+                result["parameters"] = list(combined.values())
             if "requestBody" in operation:
                 body = operation["requestBody"]
-                result["requestBody"] = {"required": body.get("required", False), "content": {
-                    mime: {"schema": schema(value["schema"])} for mime, value in body["content"].items()}}
+                check_keys(body, {"required", "content", "description"}, "request body")
+                result["requestBody"] = {"required": body.get("required", False), "content": content(body["content"])}
             responses = {}
             for code, response in operation["responses"].items():
+                check_keys(response, {"description", "content", "headers"}, "response")
                 entry = {"description": f"HTTP {code}"}
+                if "headers" in response:
+                    entry["headers"] = {}
+                    for name, header in response["headers"].items():
+                        if name.lower() not in {"retry-after", "www-authenticate"}:
+                            raise ValueError(f"Unsupported response header: {name}")
+                        check_keys(header, {"description", "required", "schema", "style", "explode"}, "header")
+                        entry["headers"][name] = {key: schema(val) if key == "schema" else val
+                                                  for key, val in header.items() if key != "description"}
                 if "content" in response:
-                    entry["content"] = {mime: {"schema": schema(body["schema"])}
-                                        for mime, body in response["content"].items()}
+                    entry["content"] = content(response["content"])
                 responses[code] = entry
             result["responses"] = responses
             operations[method] = result
@@ -76,6 +118,18 @@ def normalize(document):
     if "security" in document:
         result["security"] = document["security"]
     return result
+
+
+
+def save_snapshot(output, target, check):
+    if check:
+        if target.read_text() != output:
+            raise SystemExit("OpenAPI drift: run python3 scripts/export-openapi.py and review the diff")
+        print("OpenAPI matches the committed contract")
+    else:
+        target.parent.mkdir(exist_ok=True)
+        target.write_text(output)
+        print(f"Exported {target}")
 
 
 def main():
@@ -115,14 +169,7 @@ def main():
                 raise RuntimeError("API did not expose OpenAPI within 20 seconds")
             output = json.dumps(normalize(document), indent=2, sort_keys=True) + "\n"
             target = ROOT / "contracts/openapi.json"
-            if args.check:
-                if target.read_text() != output:
-                    raise SystemExit("OpenAPI drift: run python3 scripts/export-openapi.py and review the diff")
-                print("OpenAPI matches the committed contract")
-            else:
-                target.parent.mkdir(exist_ok=True)
-                target.write_text(output)
-                print(f"Exported {target}")
+            save_snapshot(output, target, args.check)
         finally:
             if process.poll() is None:
                 process.terminate()
