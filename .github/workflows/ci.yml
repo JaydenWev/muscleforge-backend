@@ -17,9 +17,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
       - run: dotnet restore MuscleForge.Backend.sln
       - run: dotnet tool restore
       - run: dotnet build MuscleForge.Backend.sln -c Release --no-restore
@@ -28,7 +25,18 @@ jobs:
         env:
           ConnectionStrings__Database: Host=localhost;Database=muscleforge;Username=muscleforge
         run: dotnet ef migrations has-pending-model-changes --project src/MuscleForge.Infrastructure --startup-project src/MuscleForge.Api --configuration Release --no-build
-      - run: python3 scripts/export-openapi.py --check
+      - run: tests/contract_tooling/smoke.sh
+      - run: scripts/export-openapi.sh --check
+      - run: scripts/check-contract-compatibility.sh
+      - name: Package contract with source provenance
+        id: contract
+        run: scripts/package-contract.sh --revision "$GITHUB_SHA" --output artifacts/contract
+      - name: Upload versioned contract
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-${{ steps.contract.outputs.api_version }}-${{ steps.contract.outputs.document_version }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/contract/
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:

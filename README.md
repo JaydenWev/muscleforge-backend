@@ -18,7 +18,7 @@ The common [API error and validation contract](docs/api-errors.md) defines probl
 
 - [.NET SDK 10.0.403](https://dotnet.microsoft.com/en-us/download/dotnet/10.0), pinned by `global.json`.
 - Docker with Compose v2 for local PostgreSQL/container development.
-- Python 3.11+ for contract export; CI uses 3.12.
+- Bash for the thin contract commands; Docker runs the pinned compatibility tool.
 
 ## Run the local containers
 
@@ -164,18 +164,20 @@ dotnet tool restore
 dotnet build MuscleForge.Backend.sln -c Release
 dotnet test MuscleForge.Backend.sln -c Release --no-build
 dotnet ef migrations has-pending-model-changes --project src/MuscleForge.Infrastructure --startup-project src/MuscleForge.Api --configuration Release -- --environment Development
-python3 scripts/export-openapi.py --check
+scripts/export-openapi.sh --check
+tests/contract_tooling/smoke.sh
+scripts/check-contract-compatibility.sh
 ```
 
 Domain tests cover owner requirements, supported tracking, validation, atomic edits, and archive timestamps. HTTP tests use an injected probe to check status, liveness/readiness, and unavailable registration. Migration tests use Testcontainers with isolated real PostgreSQL to verify schema/readiness, explicit migration behavior, constraints and round trips; Docker must be available, and these checks are not silently skipped. CI also applies migrations explicitly before checking the API container's readiness. Authenticated resource ownership tests will accompany the corresponding endpoints.
 
-Owner-bootstrap tests launch the actual API with environment-only credentials against isolated PostgreSQL. They verify creation/hash validation, repeated and concurrent startup, preservation of personal data, conflicting owner configuration, safe errors and schema prerequisites. Tooling cases exercise the restored EF CLI and Python exporter with owner configuration present, proving migration and contract work do not provision an account. Maintenance tests cover security-stamp reset and removal of the creation CLI. Interactive password input and its terminal-only tests have been removed.
+Owner-bootstrap tests launch the actual API with environment-only credentials against isolated PostgreSQL. They verify creation/hash validation, repeated and concurrent startup, preservation of personal data, conflicting owner configuration, safe errors and schema prerequisites. Tooling cases exercise the restored EF CLI and first-party build-time OpenAPI exporter with owner configuration present, proving migration and contract work do not provision an account. Maintenance tests cover security-stamp reset and removal of the creation CLI. Interactive password input and its terminal-only tests have been removed.
 
 Restore generates `packages.lock.json` files. Commit the resolved files alongside dependency changes. CI enforces existing lockfiles.
 
 ## API contract
 
-After a route/DTO change, build Release and run `python3 scripts/export-openapi.py`. It starts a temporary local development API, reads framework-generated OpenAPI, inlines schemas, and removes host/documentation metadata. CI checks the canonical `contracts/openapi.json` snapshot for drift. The exporter supports authentication request bodies and bearer security metadata; parameterized operations remain an explicit MF-13 extension. The frontend stays pinned to its existing snapshot until its generator is updated.
+After a route/DTO change, build Release and run `scripts/export-openapi.sh`. It uses Microsoft.Extensions.ApiDescription.Server to generate the framework OpenAPI document at build time without a listening HTTP server. CI checks the canonical `contracts/openapi.json` snapshot for drift. The standard document retains referenced schemas, authentication request bodies, parameters and bearer metadata. The [contract tooling guide](docs/api-contract.md) describes supported shapes, the provisional compatibility baseline and exact versioned workflow artifacts. The frontend deliberately pins and generates its own contract copy; builds never fetch this checkout.
 
 For a frontend update, commit the backend change, deliberately copy the contract, and record that backend commit and SHA-256 in its `contracts/source.json`. Frontend builds never fetch a running backend or another checkout. Breaking-change comparison and versioned release artifacts are required before the first supported app release.
 
@@ -192,3 +194,5 @@ The Release image builds successfully. An isolated Compose project using a synth
 MF-9 passes the Release build with warnings treated as errors and all 111 tests (13 unit and 98 integration, zero skips). The suite includes 44 real-PostgreSQL cases and HTTP checks through Kestrel/TestServer for DTO validation, errors, auth challenges, body limits, cancellation and safe logs. The exact 256 KiB chunked-body boundary is covered after separating Kestrel's transport allowance from the decoded-body cap. The OpenAPI drift and pending-model checks pass, and the Release Docker image builds. The existing 200 status response is unchanged; the contract adds its shared 500 problem schema. No frontend contract copy or client-generation change is required for the current status client; authenticated/error-consuming clients remain MF-13. PR CI and integration are tracked in MF-9.
 
 MF-11 passes the Release solution build with warnings treated as errors (zero warnings/errors) and all 120 tests (13 unit, 107 integration, zero skips). PostgreSQL-backed authentication checks cover login, refresh, stable account identity, generic credential errors, lockout, token expiry, stamp invalidation, per-IP throttling and safe logs. Encrypted keys preserve access and refresh tokens across a host restart; independent keys reject both. Production refuses missing key configuration. OpenAPI drift and EF pending-model checks pass, and the Release container builds. Android sign-in, generated-client adoption and deployed TLS/proxy verification remain MF-14, MF-13 and MF-43/MF-45 respectively.
+
+MF-13 tooling now uses the first-party build-time OpenAPI exporter, digest-pinned oasdiff and a small .NET manifest writer. The custom Python normalizer, compatibility engine and their tests have been removed. The referenced OpenAPI document describes the numeric expiresIn response accurately; the original provisional baseline is retained, with two explicitly documented pattern-correction findings ignored. The Release build passes with warnings as errors and all 120 backend tests pass, including owner-safe export and numeric token response checks. The original-baseline oasdiff comparison passes; an endpoint-removal fixture fails as expected. The Release Docker image also builds.
