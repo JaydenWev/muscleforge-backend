@@ -58,6 +58,8 @@ public sealed partial class AuthenticationTests(PostgresFixture postgres) : ICla
         Assert.Equal(Email, body.RootElement.GetProperty("email").GetString());
         using var refresh = await client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = token.RefreshToken }, Ct);
         Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
+        using var refreshJson = JsonDocument.Parse(await refresh.Content.ReadAsStringAsync(Ct));
+        Assert.Equal(JsonValueKind.Number, refreshJson.RootElement.GetProperty("expiresIn").ValueKind);
         var renewed = (await refresh.Content.ReadFromJsonAsync<Token>(Ct))!;
         using var renewedMe = await GetMe(client, renewed.AccessToken);
         Assert.Equal(HttpStatusCode.OK, renewedMe.StatusCode);

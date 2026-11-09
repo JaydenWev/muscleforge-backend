@@ -1,0 +1,5 @@
+# One-time correction of the provisional schema: expiresIn is emitted as a JSON
+# number, so the old string regex was inapplicable. These two findings refer to
+# the same response type on login and refresh; other findings remain enabled.
+POST /api/v1/auth/login the `expiresIn` response's property pattern `^-?(?:0|[1-9]\d*)$` was removed for the status `200`
+POST /api/v1/auth/refresh the `expiresIn` response's property pattern `^-?(?:0|[1-9]\d*)$` was removed for the status `200`

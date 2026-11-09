@@ -1,7 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
-using System.Net;
-using System.Net.Sockets;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Xunit;
@@ -53,12 +50,9 @@ public sealed class OwnerToolingTests(PostgresFixture postgres) : IClassFixture<
     {
         await using var database = await postgres.CreateDatabaseAsync(CancellationToken);
         var root = FindRepositoryRoot();
-        var startInfo = CreateToolStartInfo(root, database.ConnectionString, "python3");
-        // Keep the helper's Testing environment: export must select Development itself.
-        startInfo.ArgumentList.Add(Path.Combine(root, "scripts", "export-openapi.py"));
+        var startInfo = CreateToolStartInfo(root, database.ConnectionString, "bash");
+        startInfo.ArgumentList.Add(Path.Combine(root, "scripts", "export-openapi.sh"));
         startInfo.ArgumentList.Add("--check");
-        startInfo.ArgumentList.Add("--port");
-        startInfo.ArgumentList.Add(AllocateLoopbackPort().ToString(CultureInfo.InvariantCulture));
 
         var result = await RunToolAsync(startInfo);
 
@@ -89,20 +83,6 @@ public sealed class OwnerToolingTests(PostgresFixture postgres) : IClassFixture<
             }
         }
         throw new InvalidOperationException("Could not locate the backend solution for tooling acceptance tests.");
-    }
-
-    private static int AllocateLoopbackPort()
-    {
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        try
-        {
-            return ((IPEndPoint)listener.LocalEndpoint).Port;
-        }
-        finally
-        {
-            listener.Stop();
-        }
     }
 
     private static async Task<OwnerCommandResult> RunToolAsync(ProcessStartInfo startInfo)

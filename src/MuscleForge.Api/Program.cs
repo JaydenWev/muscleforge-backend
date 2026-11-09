@@ -42,6 +42,18 @@ builder.Services.AddOpenApi("v1", options =>
         document.Info.Version = "0.1.0-dev";
         document.Servers = [];
         document.Components ??= new OpenApiComponents();
+        // The token response is serialized as a number. The framework schema also
+        // describes strings accepted during deserialization, which this output-only
+        // type never receives and which generators cannot reliably represent.
+        if (document.Components.Schemas?.TryGetValue("AccessTokenResponse", out var tokenSchema) == true
+            && tokenSchema is OpenApiSchema { Properties: not null } responseSchema
+            && responseSchema.Properties.TryGetValue("expiresIn", out var expiresIn)
+            && expiresIn is OpenApiSchema expirySchema)
+        {
+            expirySchema.Type = JsonSchemaType.Integer;
+            expirySchema.Pattern = null;
+            expirySchema.AnyOf = null;
+        }
         document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
         document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme { Type = SecuritySchemeType.Http, Scheme = "bearer" };
         return Task.CompletedTask;

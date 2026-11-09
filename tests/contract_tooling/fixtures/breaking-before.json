@@ -1,0 +1,1 @@
+{"openapi":"3.0.4","info":{"title":"Compatibility smoke test","version":"1"},"paths":{"/api/v1/example":{"get":{"responses":{"200":{"description":"OK"}}}}}}
