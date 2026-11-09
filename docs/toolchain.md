@@ -1,6 +1,6 @@
 # Toolchain baseline
 
-Checked: 2026-11-01
+Checked: 2026-11-09
 
 | Component | Pin |
 | --- | --- |
@@ -11,7 +11,8 @@ Checked: 2026-11-01
 | PostgreSQL container | 17.11-alpine |
 | xUnit v3 / VSTest adapter | 3.2.2 / 3.1.5 |
 | Microsoft.NET.Test.Sdk | 18.10.0 |
-| Python | 3.11+; CI uses 3.12 |
+| Build-time OpenAPI exporter | Microsoft.Extensions.ApiDescription.Server 10.0.14 |
+| Compatibility tool | oasdiff v1.37.0, image digest pinned in the wrapper |
 
 Package versions are centralized in `Directory.Packages.props`. Restore writes lockfiles; commit them after the first equipped restore. CI enforces existing lockfiles.
 
@@ -22,4 +23,4 @@ Official references:
 - [ASP.NET Core OpenAPI generation](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/aspnetcore-openapi?view=aspnetcore-10.0).
 - [PostgreSQL releases](https://www.postgresql.org/docs/release/).
 
-An actual restore/build has not run in the authoring workspace. Validate the first CI result before treating the toolchain as verified.
+Restore, Release build, backend tests and the Release container build have been verified in the development workspace. See README validation notes; GitHub CI/artifact publication remains a separate integration check.
