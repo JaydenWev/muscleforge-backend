@@ -33,7 +33,7 @@ public sealed class OwnerAdministrationTests(PostgresFixture postgres) : IClassF
         Assert.Equal(before.PasswordHash, after.PasswordHash);
         Assert.False(string.IsNullOrEmpty(after.SecurityStamp));
         Assert.NotEqual(before.SecurityStamp, after.SecurityStamp);
-        Assert.Equal(exercise.Id, (await context.Exercises.SingleAsync(CancellationToken)).Id);
+        Assert.Equal(exercise.Id, (await context.Exercises.SingleAsync(x => x.Id == exercise.Id, CancellationToken)).Id);
         Assert.True(await OwnerBootstrapTests.CheckPasswordAsync(database, after, OwnerBootstrapTests.Password));
         Assert.False(result.Output.Contains(OwnerBootstrapTests.Password, StringComparison.Ordinal),
             "Administrative output must not reveal credentials.");

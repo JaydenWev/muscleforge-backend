@@ -14,6 +14,7 @@ using MuscleForge.Api.Health;
 using MuscleForge.Api.Standards;
 using MuscleForge.Core.Persistence;
 using MuscleForge.Infrastructure.Persistence;
+using MuscleForge.Infrastructure.Exercises;
 
 if (args is ["owner", ..])
 {
@@ -73,6 +74,7 @@ builder.Services.AddOpenApi("v1", options =>
 builder.Services.AddDbContext<MuscleForgeDbContext>((services, options) =>
     options.UseNpgsql(services.GetRequiredService<IConfiguration>().GetConnectionString("Database")));
 builder.Services.AddScoped<IDatabaseProbe, PostgresDatabaseProbe>();
+builder.Services.AddScoped<ExerciseCatalogSeeder>();
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 
 var app = builder.Build();
@@ -92,6 +94,13 @@ if (ownerBootstrap == OwnerBootstrapResult.Created)
 else if (ownerBootstrap == OwnerBootstrapResult.AlreadyExists)
 {
     app.Logger.LogInformation("Configured owner account already exists; no changes made.");
+}
+
+if (ownerBootstrap != OwnerBootstrapResult.NotConfigured)
+{
+    var inserted = await OwnerExerciseCatalogBootstrapper.EnsureSeededAsync(
+        app.Services, app.Configuration["Owner:Email"]!, app.Lifetime.ApplicationStopping);
+    app.Logger.LogInformation("Owner exercise catalog initialized; {InsertedCount} common exercises added.", inserted);
 }
 
 app.UseRouting();
