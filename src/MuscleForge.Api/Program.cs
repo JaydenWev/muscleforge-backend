@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.BearerToken;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using MuscleForge.Api.Authentication;
 using MuscleForge.Infrastructure.Identity;
@@ -8,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using MuscleForge.Api.Administration;
 using MuscleForge.Api.Contracts;
+using MuscleForge.Api.Exercises;
 using MuscleForge.Api.Health;
 using MuscleForge.Api.Standards;
 using MuscleForge.Core.Persistence;
@@ -36,6 +38,7 @@ builder.Services.AddAuthRateLimits();
 builder.Services.AddOpenApi("v1", options =>
 {
     options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_0;
+    options.AddExerciseContractMetadata();
     options.AddDocumentTransformer((document, _, _) =>
     {
         document.Info.Title = "MuscleForge API";
@@ -60,7 +63,8 @@ builder.Services.AddOpenApi("v1", options =>
     });
     options.AddOperationTransformer((operation, context, _) =>
     {
-        if (context.Description.RelativePath == "api/v1/auth/me")
+        if (context.Description.ActionDescriptor.EndpointMetadata.OfType<IAuthorizeData>().Any()
+            && !context.Description.ActionDescriptor.EndpointMetadata.OfType<IAllowAnonymous>().Any())
             operation.Security = [new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", context.Document)] = [] }];
         return Task.CompletedTask;
     });
@@ -96,6 +100,7 @@ app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.MapAuthEndpoints();
+app.MapExerciseEndpoints();
 
 // Production HTTPS terminates at the reverse proxy. Local HTTPS uses the launch profile.
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
