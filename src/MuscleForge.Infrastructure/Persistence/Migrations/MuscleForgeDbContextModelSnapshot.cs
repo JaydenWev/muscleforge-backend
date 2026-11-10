@@ -166,6 +166,13 @@ namespace MuscleForge.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("LoadConvention")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("TotalLoad");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -173,6 +180,10 @@ namespace MuscleForge.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("OwnerId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("SeedKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("TrackingType")
                         .IsRequired()
@@ -183,11 +194,19 @@ namespace MuscleForge.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OwnerId", "Name");
 
+                    b.HasIndex("OwnerId", "SeedKey")
+                        .IsUnique()
+                        .HasFilter("\"SeedKey\" IS NOT NULL");
+
                     b.ToTable("Exercises", null, t =>
                         {
                             t.HasCheckConstraint("CK_Exercises_Equipment_NotBlank", "\"Equipment\" ~ U&'[^\\0009-\\000D\\0020\\0085\\00A0\\1680\\2000-\\200A\\2028\\2029\\202F\\205F\\3000]'");
 
+                            t.HasCheckConstraint("CK_Exercises_LoadConvention_Supported", "\"LoadConvention\" IN ('TotalLoad', 'PerDumbbell')");
+
                             t.HasCheckConstraint("CK_Exercises_Name_NotBlank", "\"Name\" ~ U&'[^\\0009-\\000D\\0020\\0085\\00A0\\1680\\2000-\\200A\\2028\\2029\\202F\\205F\\3000]'");
+
+                            t.HasCheckConstraint("CK_Exercises_SeedKey_NotBlank", "\"SeedKey\" IS NULL OR \"SeedKey\" ~ U&'[^\\0009-\\000D\\0020\\0085\\00A0\\1680\\2000-\\200A\\2028\\2029\\202F\\205F\\3000]'");
 
                             t.HasCheckConstraint("CK_Exercises_TrackingType_Supported", "\"TrackingType\" = 'ExternalWeightAndReps'");
                         });

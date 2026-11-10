@@ -17,6 +17,33 @@ public sealed class PostgresMigrationTests(PostgresFixture postgres) : IClassFix
     private static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task CatalogMigrationPreservesExistingCustomExerciseAcrossUpgradeAndDowngrade()
+    {
+        await using var database = await postgres.CreateDatabaseAsync(CancellationToken);
+        await using var context = database.CreateContext();
+        var migrations = context.Database.GetMigrations().ToArray();
+        var migrator = context.GetService<IMigrator>();
+        await migrator.MigrateAsync(migrations[0], CancellationToken);
+        var owner = CreateUser();
+        context.Users.Add(owner);
+        await context.SaveChangesAsync(CancellationToken);
+        var id = Guid.NewGuid();
+        await context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "Exercises" ("Id", "OwnerId", "Name", "Equipment", "TrackingType")
+            VALUES ({id}, {owner.Id}, {"Barbell Squat"}, {"Custom rack"}, {"ExternalWeightAndReps"})
+            """, CancellationToken);
+        await context.Database.MigrateAsync(CancellationToken);
+        var saved = await context.Exercises.SingleAsync(CancellationToken);
+        Assert.Equal(id, saved.Id);
+        Assert.Equal("Custom rack", saved.Equipment);
+        Assert.Null(saved.SeedKey);
+        Assert.Equal(ExerciseLoadConvention.TotalLoad, saved.LoadConvention);
+        await migrator.MigrateAsync(migrations[0], CancellationToken);
+        var names = await database.QueryStringsAsync("SELECT \"Name\" FROM \"Exercises\"", CancellationToken);
+        Assert.Equal(["Barbell Squat"], names);
+    }
+
+    [Fact]
     public async Task StartupAndHealthRequestsLeaveAnEmptyDatabaseUnmigrated()
     {
         await using var database = await postgres.CreateDatabaseAsync(CancellationToken);
@@ -159,6 +186,8 @@ public sealed class PostgresMigrationTests(PostgresFixture postgres) : IClassFix
         Assert.Contains("Name:character varying:NO:100", columns);
         Assert.Contains("Equipment:character varying:NO:100", columns);
         Assert.Contains("TrackingType:character varying:NO:32", columns);
+        Assert.Contains("LoadConvention:character varying:NO:32", columns);
+        Assert.Contains("SeedKey:character varying:YES:64", columns);
         Assert.Contains("ArchivedAt:timestamp with time zone:YES:", columns);
         var indexes = await database.QueryStringsAsync("""
             SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'Exercises';
