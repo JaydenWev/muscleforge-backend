@@ -160,6 +160,284 @@
         ]
       }
     },
+    "/api/v1/exercises": {
+      "get": {
+        "tags": [
+          "Exercises"
+        ],
+        "operationId": "ListExercises",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Literal case-insensitive substring of name or equipment, at most 100 characters after trimming. Wildcards have no special meaning.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeArchived",
+            "in": "query",
+            "description": "Include archived records for management; normal selection excludes them.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExercisePageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationProblem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Exercises"
+        ],
+        "operationId": "CreateExercise",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExerciseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationProblem"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExerciseResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/exercises/{id}": {
+      "get": {
+        "tags": [
+          "Exercises"
+        ],
+        "operationId": "GetExercise",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExerciseResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Exercises"
+        ],
+        "operationId": "UpdateExercise",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExerciseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationProblem"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExerciseResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/v1/status": {
       "get": {
         "tags": [
@@ -298,6 +576,38 @@
           }
         }
       },
+      "CreateExerciseRequest": {
+        "required": [
+          "name",
+          "equipment"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Required nonblank text; 1–100 characters after trimming surrounding whitespace."
+          },
+          "equipment": {
+            "type": "string",
+            "description": "Required nonblank text; 1–100 characters after trimming surrounding whitespace."
+          },
+          "trackingType": {
+            "enum": [
+              "ExternalWeightAndReps"
+            ],
+            "type": "string",
+            "default": "ExternalWeightAndReps"
+          },
+          "loadConvention": {
+            "enum": [
+              "TotalLoad",
+              "PerDumbbell"
+            ],
+            "type": "string",
+            "default": "TotalLoad"
+          }
+        }
+      },
       "CurrentUserResponse": {
         "required": [
           "id",
@@ -311,6 +621,86 @@
           },
           "email": {
             "type": "string"
+          }
+        }
+      },
+      "ExercisePageResponse": {
+        "required": [
+          "items",
+          "offset",
+          "limit",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExerciseResponse"
+            }
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ExerciseResponse": {
+        "required": [
+          "id",
+          "name",
+          "equipment",
+          "trackingType",
+          "loadConvention",
+          "isArchived",
+          "archivedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "Required nonblank text; 1–100 characters after trimming surrounding whitespace."
+          },
+          "equipment": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "Required nonblank text; 1–100 characters after trimming surrounding whitespace."
+          },
+          "trackingType": {
+            "enum": [
+              "ExternalWeightAndReps"
+            ],
+            "type": "string"
+          },
+          "loadConvention": {
+            "enum": [
+              "TotalLoad",
+              "PerDumbbell"
+            ],
+            "type": "string"
+          },
+          "isArchived": {
+            "type": "boolean"
+          },
+          "archivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         }
       },
@@ -348,6 +738,43 @@
             "nullable": true
           }
         }
+      },
+      "UpdateExerciseRequest": {
+        "required": [
+          "isArchived",
+          "name",
+          "equipment"
+        ],
+        "type": "object",
+        "properties": {
+          "isArchived": {
+            "type": "boolean",
+            "description": "Required. Archiving is permanent; false on an archived exercise returns 409 state_conflict."
+          },
+          "name": {
+            "type": "string",
+            "description": "Required nonblank text; 1–100 characters after trimming surrounding whitespace."
+          },
+          "equipment": {
+            "type": "string",
+            "description": "Required nonblank text; 1–100 characters after trimming surrounding whitespace."
+          },
+          "trackingType": {
+            "enum": [
+              "ExternalWeightAndReps"
+            ],
+            "type": "string",
+            "default": "ExternalWeightAndReps"
+          },
+          "loadConvention": {
+            "enum": [
+              "TotalLoad",
+              "PerDumbbell"
+            ],
+            "type": "string",
+            "default": "TotalLoad"
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -360,6 +787,9 @@
   "tags": [
     {
       "name": "Authentication"
+    },
+    {
+      "name": "Exercises"
     },
     {
       "name": "System"

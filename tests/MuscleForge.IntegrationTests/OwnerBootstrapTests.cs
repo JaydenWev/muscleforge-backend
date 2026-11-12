@@ -37,7 +37,13 @@ public sealed class OwnerBootstrapTests(PostgresFixture postgres) : IClassFixtur
         Assert.False(string.IsNullOrEmpty(owner.SecurityStamp));
         Assert.True(await CheckPasswordAsync(database, owner, Password));
         Assert.False(await CheckPasswordAsync(database, owner, "Wrong-Synthetic!2468"));
-        Assert.Empty(await context.Exercises.ToListAsync(CancellationToken));
+        var seeded = await context.Exercises.ToListAsync(CancellationToken);
+        Assert.NotEmpty(seeded);
+        Assert.All(seeded, exercise =>
+        {
+            Assert.Equal(owner.Id, exercise.OwnerId);
+            Assert.False(string.IsNullOrWhiteSpace(exercise.SeedKey));
+        });
 
         using var client = new HttpClient { BaseAddress = api.Address };
         foreach (var route in new[] { "/register", "/api/v1/auth/register" })
@@ -76,7 +82,7 @@ public sealed class OwnerBootstrapTests(PostgresFixture postgres) : IClassFixtur
         Assert.Equal(before.ConcurrencyStamp, after.ConcurrencyStamp);
         Assert.True(await CheckPasswordAsync(database, after, Password));
         Assert.False(await CheckPasswordAsync(database, after, changedPassword));
-        var preservedExercise = await context.Exercises.SingleAsync(CancellationToken);
+        var preservedExercise = await context.Exercises.SingleAsync(x => x.Id == exercise.Id, CancellationToken);
         Assert.Equal(exercise.Id, preservedExercise.Id);
         Assert.Equal(exercise.Name, preservedExercise.Name);
         Assert.Equal(exercise.ArchivedAt, preservedExercise.ArchivedAt);
@@ -137,7 +143,7 @@ public sealed class OwnerBootstrapTests(PostgresFixture postgres) : IClassFixtur
         Assert.Equal(before.Id, after.Id);
         Assert.Equal(before.PasswordHash, after.PasswordHash);
         Assert.Equal(before.SecurityStamp, after.SecurityStamp);
-        Assert.Equal(exercise.Id, (await context.Exercises.SingleAsync(CancellationToken)).Id);
+        Assert.Equal(exercise.Id, (await context.Exercises.SingleAsync(x => x.Id == exercise.Id, CancellationToken)).Id);
     }
 
     [Theory]

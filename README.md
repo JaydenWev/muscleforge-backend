@@ -6,9 +6,11 @@ ASP.NET Core API for MuscleForge, a personal workout tracker. Companion reposito
 
 The initial foundation contains independent API, Core, and Infrastructure projects; a PostgreSQL/EF Core context prepared for Identity; an exercise domain model; health endpoints; a versioned status contract; tests; and container/CI configuration.
 
-This is the first part of milestone 1. Identity and personal-exercise schema migrations, configured owner provisioning, an account maintenance command, and bearer login/refresh/current-account endpoints are included. Exercise endpoints are next. There is no account registration or workout data endpoint yet. Readiness requires connectivity and the exact migration history expected by this API build; a reachable but unmigrated, outdated, or unrecognized schema is not ready.
+The milestone 1 backend includes Identity and personal-exercise migrations, configured owner provisioning, bearer login/refresh/current-account endpoints, and an owner-scoped exercise catalog API. Configured startup adds missing common exercises as personal copies; list/search/create/edit/archive endpoints manage those and custom exercises. There is no public account registration or workout-session endpoint yet. Readiness requires connectivity and the exact migration history expected by this API build; a reachable but unmigrated, outdated, or unrecognized schema is not ready.
 
 See [authentication setup and contract](docs/authentication.md) for token behavior and one-time certificate setup. Configure `DATA_PROTECTION_CERTIFICATE_PASSWORD` and create the PFX before starting Compose; the key volume and certificate must be preserved across restarts.
+
+See [the personal exercise catalog](docs/exercises.md) for API examples, archive/search behavior, weight conventions and repeatable seed provisioning. MF-15 supplies the Android catalog screens and client update.
 
 See the [architecture baseline](docs/architecture.md), [toolchain](docs/toolchain.md), and [foundation decision](docs/decisions/0001-initial-foundation.md).
 
@@ -59,7 +61,7 @@ HTTPS listens at `https://localhost:7243`. The development OpenAPI endpoint is `
 
 ## Apply and inspect migrations
 
-The initial migration provisions Identity with UUID keys and owner-scoped exercises, including required bounded names/equipment, the supported `ExternalWeightAndReps` tracking type, archive timestamps, an owner/catalog index, and restrictive owner foreign keys. Database checks also reject whitespace-only names/equipment and unsupported tracking types.
+The initial migration provisions Identity with UUID keys and owner-scoped exercises, including required bounded names/equipment, the supported `ExternalWeightAndReps` tracking type, archive timestamps, an owner/catalog index, and restrictive owner foreign keys. The additive `20261110172120_ExerciseCatalog` migration adds a load convention (existing rows default to `TotalLoad`) and nullable seed provenance with a filtered per-owner unique index. Existing exercise IDs, names, equipment and archives are retained; custom rows are never matched to seeds by name. Database checks reject blank names/equipment/seed keys and unsupported tracking/load conventions.
 
 Configure the target connection string first. For the local Compose database, use the user-secret command above with `Host=localhost` and the password from your `.env`. A deployment may supply `ConnectionStrings__Database` from its secret configuration instead; never commit that value.
 
@@ -98,7 +100,7 @@ Apply the migrations as described above, then run `docker compose up --build -d 
 
 **These settings are for initial creation.** Restarting the API preserves the existing normalized account, password, security stamp and personal data. Changing `OWNER_PASSWORD` does not reset an existing password. Changing `OWNER_EMAIL` to an address that does not match an existing account fails rather than silently creating another bootstrap owner. Concurrent startup is serialized through a short PostgreSQL transaction and advisory lock, with a ten-second lock wait limit.
 
-Incomplete/invalid configuration, failed Identity validation or an incompatible schema stops configured startup with a generic error, without printing credentials or original exception details. Bootstrap never applies migrations or seeds exercises. Exercise seeding belongs to MF-12; HTTP login and refresh are described in [authentication.md](docs/authentication.md). The shared `AddMuscleForgeIdentity()` registration supplies the same password policy for those endpoints.
+Incomplete/invalid configuration, failed Identity validation or an incompatible schema stops configured startup with a generic error, without printing credentials or original exception details. Startup never applies migrations. After successful configured account provisioning, a separate step inserts missing common exercises for that owner before HTTP serving. Repeated/concurrent startup preserves personal edits, custom rows and archived seeds. If seeding fails, startup fails safely; the next start retries it without duplicating seeds or changing the account password. HTTP login and refresh are described in [authentication.md](docs/authentication.md). The shared `AddMuscleForgeIdentity()` registration supplies the same password policy for those endpoints.
 
 The SDK does not parse `.env`. For SDK or IDE runs, supply `Owner:Email` and `Owner:Password` through .NET user secrets or the equivalent `Owner__Email` and `Owner__Password` process environment variables. Leaving both values unset/empty skips bootstrap; supplying only one fails. OpenAPI export clears owner configuration so contract generation never creates an account.
 
@@ -182,6 +184,8 @@ After a route/DTO change, build Release and run `scripts/export-openapi.sh`. It 
 For a frontend update, commit the backend change, deliberately copy the contract, and record that backend commit and SHA-256 in its `contracts/source.json`. Frontend builds never fetch a running backend or another checkout. Breaking-change comparison and versioned release artifacts are required before the first supported app release.
 
 ## Validation status
+
+MF-12 passes the Release solution build with warnings treated as errors, all 131 tests (14 unit and 117 integration), and the EF pending-model check. Real PostgreSQL 17.11 tests verify owner-scoped HTTP CRUD, literal search/paging, archive concurrency, repeatable seeding, configured startup and migration upgrade/downgrade, with zero skips. Tests caught and verified a fix for the first archive response's PostgreSQL timestamp precision. OpenAPI drift and additive compatibility checks pass, and the unchanged/breaking compatibility fixtures behave as expected. NSwag 14.7.1 generated a compilable client from the snapshot in a temporary independent consumer, and the Release runtime image builds successfully. Native catalog screens/client adoption and device evidence remain MF-15. Local socket restrictions required the xUnit in-process runner inside the SDK container; ordinary CI commands above remain unchanged.
 
 MF-8 acceptance was verified on Linux ARM64 with SDK 10.0.403 and PostgreSQL 17.11. The Release build passes with warnings treated as errors; 13 unit tests and 27 integration tests pass with zero skips, including 23 real-PostgreSQL cases. The pending-model and OpenAPI contract checks pass.
 

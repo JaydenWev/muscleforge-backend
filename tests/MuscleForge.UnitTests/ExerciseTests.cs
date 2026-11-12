@@ -47,6 +47,22 @@ public sealed class ExerciseTests
     }
 
     [Fact]
+    public void LoadConventionDefaultsAndUpdatesAtomically()
+    {
+        var exercise = new Exercise(Guid.NewGuid(), "Squat", "Barbell");
+        Assert.Equal(ExerciseLoadConvention.TotalLoad, exercise.LoadConvention);
+        Assert.Null(exercise.SeedKey);
+        Assert.Throws<ArgumentOutOfRangeException>(() => exercise.Update("Changed", "Rack", (ExerciseLoadConvention)42));
+        Assert.Throws<ArgumentException>(() => exercise.Update("Changed", "", ExerciseLoadConvention.PerDumbbell));
+        Assert.Equal("Squat", exercise.Name);
+        Assert.Equal("Barbell", exercise.Equipment);
+        Assert.Equal(ExerciseLoadConvention.TotalLoad, exercise.LoadConvention);
+        exercise.Update("Curl", "Dumbbells", ExerciseLoadConvention.PerDumbbell);
+        exercise.Rename("Hammer Curl", "Dumbbells");
+        Assert.Equal(ExerciseLoadConvention.PerDumbbell, exercise.LoadConvention);
+    }
+
+    [Fact]
     public void ArchivingTwiceRetainsTheOriginalTimestamp()
     {
         var exercise = new Exercise(Guid.NewGuid(), " Squat ", " Barbell ");
