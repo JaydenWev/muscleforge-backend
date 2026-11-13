@@ -591,10 +591,17 @@
         "type": "object",
         "properties": {
           "weightUnit": {
+            "enum": [
+              "kg",
+              "lb"
+            ],
             "type": "string"
           },
           "timeZoneId": {
-            "type": "string"
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "A known IANA time zone identifier."
           }
         }
       },
@@ -850,14 +857,17 @@
         "type": "object",
         "properties": {
           "weightUnit": {
-            "type": "string",
-            "nullable": true
+            "enum": [
+              "kg",
+              "lb"
+            ],
+            "type": "string"
           },
           "timeZoneId": {
             "maxLength": 100,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string",
-            "nullable": true
+            "description": "A known IANA time zone identifier."
           }
         }
       },

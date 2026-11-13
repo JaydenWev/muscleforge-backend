@@ -41,6 +41,7 @@ builder.Services.AddOpenApi("v1", options =>
 {
     options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_0;
     options.AddExerciseContractMetadata();
+    options.AddAccountPreferencesContractMetadata();
     options.AddDocumentTransformer((document, _, _) =>
     {
         document.Info.Title = "MuscleForge API";
