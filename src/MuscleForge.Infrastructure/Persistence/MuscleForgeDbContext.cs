@@ -18,6 +18,13 @@ public sealed class MuscleForgeDbContext(DbContextOptions<MuscleForgeDbContext> 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<ApplicationUser>(user =>
+        {
+            user.Property(x => x.WeightUnit).IsRequired().HasMaxLength(2).HasDefaultValue("kg");
+            user.Property(x => x.TimeZoneId).IsRequired().HasMaxLength(100).HasDefaultValue("Etc/UTC");
+            user.ToTable("AspNetUsers", table =>
+                table.HasCheckConstraint("CK_AspNetUsers_WeightUnit_Supported", "\"WeightUnit\" IN ('kg', 'lb')"));
+        });
         builder.Entity<Exercise>(exercise =>
         {
             exercise.ToTable("Exercises", table =>

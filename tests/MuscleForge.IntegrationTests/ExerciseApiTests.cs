@@ -230,6 +230,42 @@ public sealed class ExerciseApiTests(PostgresFixture postgres) : IClassFixture<P
         await Problem(response, 401, "authentication_required");
     }
 
+    [Fact]
+    public async Task AccountPreferencesAreValidatedAndIsolated()
+    {
+        await using var db = await OwnerBootstrapTests.CreateMigratedDatabaseAsync(postgres);
+        await using var api = db.CreateApi();
+        await CreateUsers(api.Services);
+        using var first = api.CreateClient();
+        using var second = api.CreateClient();
+        using (var unauthorized = await first.GetAsync("/api/v1/account/preferences", Ct))
+            await Problem(unauthorized, 401, "authentication_required");
+        await Authenticate(first, "first@example.test");
+        await Authenticate(second, "second@example.test");
+        using (var initial = await first.GetFromJsonAsync<JsonDocument>("/api/v1/account/preferences", Ct))
+        {
+            Assert.Equal("kg", initial!.RootElement.GetProperty("weightUnit").GetString());
+            Assert.Equal("Etc/UTC", initial.RootElement.GetProperty("timeZoneId").GetString());
+        }
+        using (var saved = await first.PutAsJsonAsync("/api/v1/account/preferences", new { weightUnit = "lb", timeZoneId = "Europe/Amsterdam" }, Ct))
+            Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        foreach (var bad in new[] { new { weightUnit = "lbs", timeZoneId = "Etc/UTC" }, new { weightUnit = "kg", timeZoneId = "Pacific Standard Time" }, new { weightUnit = "kg", timeZoneId = "Bogus/Zone" } })
+        {
+            using var response = await first.PutAsJsonAsync("/api/v1/account/preferences", bad, Ct);
+            await Problem(response, 400, "validation_failed");
+        }
+        using (var stored = await first.GetFromJsonAsync<JsonDocument>("/api/v1/account/preferences", Ct))
+        {
+            Assert.Equal("lb", stored!.RootElement.GetProperty("weightUnit").GetString());
+            Assert.Equal("Europe/Amsterdam", stored.RootElement.GetProperty("timeZoneId").GetString());
+        }
+        using (var isolated = await second.GetFromJsonAsync<JsonDocument>("/api/v1/account/preferences", Ct))
+        {
+            Assert.Equal("kg", isolated!.RootElement.GetProperty("weightUnit").GetString());
+            Assert.Equal("Etc/UTC", isolated.RootElement.GetProperty("timeZoneId").GetString());
+        }
+    }
+
     private static async Task<(Guid, Guid)> CreateUsers(IServiceProvider services)
     {
         await using var scope = services.CreateAsyncScope();

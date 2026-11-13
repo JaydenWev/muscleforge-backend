@@ -1,3 +1,4 @@
+using MuscleForge.Api.Account;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.BearerToken;
@@ -109,6 +110,7 @@ app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.MapAuthEndpoints();
+app.MapAccountPreferencesEndpoints();
 app.MapExerciseEndpoints();
 
 // Production HTTPS terminates at the reverse proxy. Local HTTPS uses the launch profile.

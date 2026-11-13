@@ -17,6 +17,25 @@ public sealed class PostgresMigrationTests(PostgresFixture postgres) : IClassFix
     private static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task PreferencesMigrationPreservesExistingAccountAndSuppliesDefaults()
+    {
+        await using var database = await postgres.CreateDatabaseAsync(CancellationToken);
+        await using var context = database.CreateContext();
+        var migrations = context.Database.GetMigrations().ToArray();
+        await context.GetService<IMigrator>().MigrateAsync(migrations[^2], CancellationToken);
+        var id = Guid.NewGuid();
+        await context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "AspNetUsers" ("Id", "UserName", "Email", "EmailConfirmed", "PhoneNumberConfirmed", "TwoFactorEnabled", "LockoutEnabled", "AccessFailedCount")
+            VALUES ({id}, {"preserved"}, {"preserved@example.test"}, false, false, false, false, 0)
+            """, CancellationToken);
+        await context.Database.MigrateAsync(CancellationToken);
+        var user = await context.Users.SingleAsync(x => x.Id == id, CancellationToken);
+        Assert.Equal("preserved@example.test", user.Email);
+        Assert.Equal("kg", user.WeightUnit);
+        Assert.Equal("Etc/UTC", user.TimeZoneId);
+    }
+
+    [Fact]
     public async Task CatalogMigrationPreservesExistingCustomExerciseAcrossUpgradeAndDowngrade()
     {
         await using var database = await postgres.CreateDatabaseAsync(CancellationToken);
@@ -25,8 +44,10 @@ public sealed class PostgresMigrationTests(PostgresFixture postgres) : IClassFix
         var migrator = context.GetService<IMigrator>();
         await migrator.MigrateAsync(migrations[0], CancellationToken);
         var owner = CreateUser();
-        context.Users.Add(owner);
-        await context.SaveChangesAsync(CancellationToken);
+        await context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "AspNetUsers" ("Id", "UserName", "Email", "EmailConfirmed", "PhoneNumberConfirmed", "TwoFactorEnabled", "LockoutEnabled", "AccessFailedCount")
+            VALUES ({owner.Id}, {owner.UserName}, {owner.Email}, false, false, false, false, 0)
+            """, CancellationToken);
         var id = Guid.NewGuid();
         await context.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO "Exercises" ("Id", "OwnerId", "Name", "Equipment", "TrackingType")

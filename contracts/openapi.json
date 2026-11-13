@@ -160,6 +160,94 @@
         ]
       }
     },
+    "/api/v1/account/preferences": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "operationId": "GetAccountPreferences",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountPreferencesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Account"
+        ],
+        "operationId": "UpdateAccountPreferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountPreferencesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationProblem"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountPreferencesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/v1/exercises": {
       "get": {
         "tags": [
@@ -495,6 +583,21 @@
           }
         }
       },
+      "AccountPreferencesResponse": {
+        "required": [
+          "weightUnit",
+          "timeZoneId"
+        ],
+        "type": "object",
+        "properties": {
+          "weightUnit": {
+            "type": "string"
+          },
+          "timeZoneId": {
+            "type": "string"
+          }
+        }
+      },
       "ApiProblem": {
         "required": [
           "type",
@@ -739,6 +842,25 @@
           }
         }
       },
+      "UpdateAccountPreferencesRequest": {
+        "required": [
+          "weightUnit",
+          "timeZoneId"
+        ],
+        "type": "object",
+        "properties": {
+          "weightUnit": {
+            "type": "string",
+            "nullable": true
+          },
+          "timeZoneId": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "UpdateExerciseRequest": {
         "required": [
           "isArchived",
@@ -787,6 +909,9 @@
   "tags": [
     {
       "name": "Authentication"
+    },
+    {
+      "name": "Account"
     },
     {
       "name": "Exercises"
