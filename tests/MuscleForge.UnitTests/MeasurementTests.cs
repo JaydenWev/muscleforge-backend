@@ -29,6 +29,8 @@ public sealed class MeasurementTests
             var unit = item.GetProperty("unit").GetString() == "kg" ? WeightUnit.Kilograms : WeightUnit.Pounds;
             Assert.Throws<ArgumentOutOfRangeException>(() => ExternalWeight.ToKilograms(item.GetProperty("value").GetDecimal(), unit));
         }
+        foreach (var item in fixture.RootElement.GetProperty("completedRepetitions").EnumerateArray())
+            Assert.Equal(item.GetProperty("valid").GetBoolean(), ExternalWeight.AreCompletedRepetitionsValid(item.GetProperty("repetitions").GetInt32()));
         foreach (var item in fixture.RootElement.GetProperty("localDays").EnumerateArray())
             Assert.Equal(DateOnly.Parse(item.GetProperty("localDay").GetString()!), SessionTimeZone.LocalDay(item.GetProperty("instant").GetDateTimeOffset(), item.GetProperty("timeZoneId").GetString()!));
     }

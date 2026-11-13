@@ -3,11 +3,17 @@
     { "value": 0, "unit": "kg", "kilograms": 0 },
     { "value": 1, "unit": "lb", "kilograms": 0.454 },
     { "value": 100, "unit": "lb", "kilograms": 45.359 },
+    { "value": 50000, "unit": "lb", "kilograms": 22679.619 },
     { "value": 22046226.216, "unit": "lb", "kilograms": 9999999.999 },
     { "value": 9999999.999, "unit": "kg", "kilograms": 9999999.999 }
   ],
   "invalidWeights": [
     { "value": 22046226.217, "unit": "lb", "reason": "exceeds maximum before rounding" }
+  ],
+  "completedRepetitions": [
+    { "repetitions": 0, "valid": false },
+    { "repetitions": -1, "valid": false },
+    { "repetitions": 1, "valid": true }
   ],
   "localDays": [
     { "instant": "2024-03-31T00:30:00Z", "timeZoneId": "Europe/Amsterdam", "localDay": "2024-03-31" },

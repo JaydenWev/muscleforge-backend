@@ -12,6 +12,8 @@ public static class ExternalWeight
     public const decimal KilogramsPerPound = 0.45359237m;
     public const decimal MaximumKilograms = 9_999_999.999m;
 
+    public static bool AreCompletedRepetitionsValid(int repetitions) => repetitions > 0;
+
     public static decimal ToKilograms(decimal value, WeightUnit unit)
     {
         if (value < 0 || ((decimal.GetBits(value)[3] >> 16) & 0xff) > 3)
