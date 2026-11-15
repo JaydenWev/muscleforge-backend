@@ -10,4 +10,6 @@ Future sessions record UTC instants and the IANA time zone captured for that ses
 
 ## Verification status
 
-The Release backend build, 25 unit tests, EF pending-model check, and four focused PostgreSQL checks passed. The database checks cover migration defaults and account preservation, preference validation and isolation, and a temporary EF `numeric(10,3)` round trip. The two tooling checks also passed with the SDK container's NuGet cache mounted at the host build path. A full serial integration run ended without a captured exit code or final summary, so its result is unverified. Complete-suite verification remains pending for the next session; no complete-suite pass is claimed.
+On 2026-11-15 the Release backend build passed with warnings treated as errors and zero warnings/errors. All 25 unit tests passed locally. [Hosted CI run 43729569162](https://github.com/JaydenWev/muscleforge-backend/actions/runs/43729569162) passed all 25 unit and 120 integration tests with zero failures/skips, plus the model/migration, OpenAPI, compatibility, container and explicit migration/readiness checks.
+
+The PostgreSQL checks include existing-account defaults and preservation, preference validation/isolation, and an EF `numeric(10,3)` round trip in a disposable temporary table. The local full integration attempt was stopped after the independent hosted result completed and is not counted as a local pass. Its partial output does not substitute for the hosted complete-suite result. Paired Android phone acceptance remains recorded separately in the frontend verification.
