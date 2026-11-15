@@ -1,3 +1,4 @@
+using MuscleForge.Api.Account;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.BearerToken;
@@ -40,6 +41,7 @@ builder.Services.AddOpenApi("v1", options =>
 {
     options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_0;
     options.AddExerciseContractMetadata();
+    options.AddAccountPreferencesContractMetadata();
     options.AddDocumentTransformer((document, _, _) =>
     {
         document.Info.Title = "MuscleForge API";
@@ -109,6 +111,7 @@ app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.MapAuthEndpoints();
+app.MapAccountPreferencesEndpoints();
 app.MapExerciseEndpoints();
 
 // Production HTTPS terminates at the reverse proxy. Local HTTPS uses the launch profile.
