@@ -210,4 +210,3 @@ public sealed class WorkoutSet
         Notes = notes;
     }
 }
-
