@@ -12,6 +12,8 @@ See [authentication setup and contract](docs/authentication.md) for token behavi
 
 See [the personal exercise catalog](docs/exercises.md) for API examples, archive/search behavior, weight conventions and repeatable seed provisioning. MF-15 supplies the Android catalog screens and client update.
 
+The [workout model and persistence agreement](docs/workout-model.md) defines templates, session snapshots, sets, lifecycle/version rules and mutation-receipt storage for MF-19. Its additive migration prepares later template/session endpoints; it does not add those routes yet.
+
 See the [architecture baseline](docs/architecture.md), [toolchain](docs/toolchain.md), and [foundation decision](docs/decisions/0001-initial-foundation.md).
 
 The common [API error and validation contract](docs/api-errors.md) defines problem responses, validation helpers, resource limits and safe request-completion logs. Request bodies are capped at 256 KiB after decoding; Kestrel separately allows up to 2 MiB including chunk framing. Login and resource-ownership enforcement remain with their feature endpoints.
