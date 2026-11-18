@@ -212,6 +212,361 @@ namespace MuscleForge.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MuscleForge.Core.Sessions.SessionExercise", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Equipment")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ExerciseName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("LoadConvention")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RestSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TrackingType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExerciseId", "OwnerId");
+
+                    b.HasIndex("SessionId", "OwnerId");
+
+                    b.HasIndex("SessionId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("SessionExercises", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SessionExercises_Equipment", "\"Equipment\" ~ U&'[^\\0009-\\000D\\0020\\0085\\00A0\\1680\\2000-\\200A\\2028\\2029\\202F\\205F\\3000]'");
+
+                            t.HasCheckConstraint("CK_SessionExercises_Load", "\"LoadConvention\" IN ('TotalLoad', 'PerDumbbell')");
+
+                            t.HasCheckConstraint("CK_SessionExercises_Name", "\"ExerciseName\" ~ U&'[^\\0009-\\000D\\0020\\0085\\00A0\\1680\\2000-\\200A\\2028\\2029\\202F\\205F\\3000]'");
+
+                            t.HasCheckConstraint("CK_SessionExercises_Position", "\"Position\" BETWEEN 0 AND 99 AND (\"RestSeconds\" IS NULL OR \"RestSeconds\" BETWEEN 0 AND 86400)");
+
+                            t.HasCheckConstraint("CK_SessionExercises_Tracking", "\"TrackingType\" = 'ExternalWeightAndReps'");
+                        });
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Sessions.WorkoutMutationReceipt", b =>
+                {
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MutationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Acknowledgement")
+                        .IsRequired()
+                        .HasMaxLength(262144)
+                        .HasColumnType("character varying(262144)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ResultVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SemanticRequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("OwnerId", "MutationId");
+
+                    b.HasIndex("SessionId", "OwnerId");
+
+                    b.ToTable("WorkoutMutationReceipts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WorkoutMutationReceipts_Acknowledgement", "jsonb_typeof(\"Acknowledgement\"::jsonb) = 'object'");
+
+                            t.HasCheckConstraint("CK_WorkoutMutationReceipts_Hash", "\"SemanticRequestHash\" ~ '^[0-9a-f]{64}$'");
+
+                            t.HasCheckConstraint("CK_WorkoutMutationReceipts_Version", "\"ResultVersion\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Sessions.WorkoutSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("SourceTemplateVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StartRequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("TemplateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TemplateName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'InProgress'");
+
+                    b.HasIndex("TemplateId", "OwnerId");
+
+                    b.HasIndex("OwnerId", "StartedAt", "Id");
+
+                    b.ToTable("WorkoutSessions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WorkoutSessions_End", "(\"Status\" = 'InProgress' AND \"EndedAt\" IS NULL) OR (\"Status\" <> 'InProgress' AND \"EndedAt\" IS NOT NULL AND \"EndedAt\" >= \"StartedAt\")");
+
+                            t.HasCheckConstraint("CK_WorkoutSessions_StartHash", "\"StartRequestHash\" ~ '^[0-9a-f]{64}$'");
+
+                            t.HasCheckConstraint("CK_WorkoutSessions_Status", "\"Status\" IN ('InProgress', 'Completed', 'Discarded')");
+
+                            t.HasCheckConstraint("CK_WorkoutSessions_Template", "(\"TemplateId\" IS NULL AND \"TemplateName\" IS NULL AND \"SourceTemplateVersion\" IS NULL) OR (\"TemplateId\" IS NOT NULL AND \"TemplateName\" IS NOT NULL AND \"SourceTemplateVersion\" IS NOT NULL AND \"SourceTemplateVersion\" >= 1)");
+
+                            t.HasCheckConstraint("CK_WorkoutSessions_TimeZone", "\"TimeZoneId\" ~ U&'[^\\0009-\\000D\\0020\\0085\\00A0\\1680\\2000-\\200A\\2028\\2029\\202F\\205F\\3000]'");
+
+                            t.HasCheckConstraint("CK_WorkoutSessions_Version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Sessions.WorkoutSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Reps")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SessionExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TargetKind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int?>("TargetRepsMax")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TargetRepsMin")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("TargetWeightKg")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("numeric(10,3)");
+
+                    b.Property<decimal?>("WeightKg")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("numeric(10,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionExerciseId", "OwnerId");
+
+                    b.HasIndex("SessionExerciseId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("WorkoutSets", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WorkoutSets_Kind", "\"Kind\" IN ('Warmup', 'Working') AND \"TargetKind\" IN ('Warmup', 'Working')");
+
+                            t.HasCheckConstraint("CK_WorkoutSets_Position", "\"Position\" BETWEEN 0 AND 99");
+
+                            t.HasCheckConstraint("CK_WorkoutSets_Values", "(\"TargetWeightKg\" IS NULL OR \"TargetWeightKg\" >= 0 AND \"TargetWeightKg\" <= 9999999.999) AND ((\"TargetRepsMin\" IS NULL AND \"TargetRepsMax\" IS NULL) OR (\"TargetRepsMin\" IS NOT NULL AND \"TargetRepsMax\" IS NOT NULL AND \"TargetRepsMin\" > 0 AND \"TargetRepsMax\" >= \"TargetRepsMin\")) AND (\"WeightKg\" IS NULL OR \"WeightKg\" >= 0 AND \"WeightKg\" <= 9999999.999) AND (\"Reps\" IS NULL OR \"Reps\" > 0) AND (NOT \"Completed\" OR (\"WeightKg\" IS NOT NULL AND \"Reps\" IS NOT NULL))");
+                        });
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Templates.TemplateExercise", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RestSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExerciseId", "OwnerId");
+
+                    b.HasIndex("TemplateId", "OwnerId");
+
+                    b.HasIndex("TemplateId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("TemplateExercises", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TemplateExercises_Position", "\"Position\" BETWEEN 0 AND 99 AND (\"RestSeconds\" IS NULL OR \"RestSeconds\" BETWEEN 0 AND 86400)");
+                        });
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Templates.TemplateSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TargetRepsMax")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TargetRepsMin")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("TargetWeightKg")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("numeric(10,3)");
+
+                    b.Property<Guid>("TemplateExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TemplateExerciseId", "OwnerId");
+
+                    b.HasIndex("TemplateExerciseId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("TemplateSets", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TemplateSets_Kind", "\"Kind\" IN ('Warmup', 'Working')");
+
+                            t.HasCheckConstraint("CK_TemplateSets_Position", "\"Position\" BETWEEN 0 AND 99");
+
+                            t.HasCheckConstraint("CK_TemplateSets_Targets", "(\"TargetWeightKg\" IS NULL OR \"TargetWeightKg\" >= 0 AND \"TargetWeightKg\" <= 9999999.999) AND ((\"TargetRepsMin\" IS NULL AND \"TargetRepsMax\" IS NULL) OR (\"TargetRepsMin\" IS NOT NULL AND \"TargetRepsMax\" IS NOT NULL AND \"TargetRepsMin\" > 0 AND \"TargetRepsMax\" >= \"TargetRepsMin\"))");
+                        });
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Templates.WorkoutTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
+
+                    b.ToTable("WorkoutTemplates", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WorkoutTemplates_Name", "\"Name\" ~ U&'[^\\0009-\\000D\\0020\\0085\\00A0\\1680\\2000-\\200A\\2028\\2029\\202F\\205F\\3000]'");
+
+                            t.HasCheckConstraint("CK_WorkoutTemplates_Version", "\"Version\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("MuscleForge.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -352,6 +707,114 @@ namespace MuscleForge.Infrastructure.Persistence.Migrations
                         .HasForeignKey("OwnerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Sessions.SessionExercise", b =>
+                {
+                    b.HasOne("MuscleForge.Core.Exercises.Exercise", null)
+                        .WithMany()
+                        .HasForeignKey("ExerciseId", "OwnerId")
+                        .HasPrincipalKey("Id", "OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MuscleForge.Core.Sessions.WorkoutSession", null)
+                        .WithMany("Exercises")
+                        .HasForeignKey("SessionId", "OwnerId")
+                        .HasPrincipalKey("Id", "OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Sessions.WorkoutMutationReceipt", b =>
+                {
+                    b.HasOne("MuscleForge.Core.Sessions.WorkoutSession", null)
+                        .WithMany()
+                        .HasForeignKey("SessionId", "OwnerId")
+                        .HasPrincipalKey("Id", "OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Sessions.WorkoutSession", b =>
+                {
+                    b.HasOne("MuscleForge.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MuscleForge.Core.Templates.WorkoutTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateId", "OwnerId")
+                        .HasPrincipalKey("Id", "OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Sessions.WorkoutSet", b =>
+                {
+                    b.HasOne("MuscleForge.Core.Sessions.SessionExercise", null)
+                        .WithMany("Sets")
+                        .HasForeignKey("SessionExerciseId", "OwnerId")
+                        .HasPrincipalKey("Id", "OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Templates.TemplateExercise", b =>
+                {
+                    b.HasOne("MuscleForge.Core.Exercises.Exercise", null)
+                        .WithMany()
+                        .HasForeignKey("ExerciseId", "OwnerId")
+                        .HasPrincipalKey("Id", "OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MuscleForge.Core.Templates.WorkoutTemplate", null)
+                        .WithMany("Exercises")
+                        .HasForeignKey("TemplateId", "OwnerId")
+                        .HasPrincipalKey("Id", "OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Templates.TemplateSet", b =>
+                {
+                    b.HasOne("MuscleForge.Core.Templates.TemplateExercise", null)
+                        .WithMany("Sets")
+                        .HasForeignKey("TemplateExerciseId", "OwnerId")
+                        .HasPrincipalKey("Id", "OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Templates.WorkoutTemplate", b =>
+                {
+                    b.HasOne("MuscleForge.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Sessions.SessionExercise", b =>
+                {
+                    b.Navigation("Sets");
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Sessions.WorkoutSession", b =>
+                {
+                    b.Navigation("Exercises");
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Templates.TemplateExercise", b =>
+                {
+                    b.Navigation("Sets");
+                });
+
+            modelBuilder.Entity("MuscleForge.Core.Templates.WorkoutTemplate", b =>
+                {
+                    b.Navigation("Exercises");
                 });
 #pragma warning restore 612, 618
         }

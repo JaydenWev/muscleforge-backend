@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using MuscleForge.Core.Exercises;
+using MuscleForge.Core.Templates;
+using MuscleForge.Core.Sessions;
 using MuscleForge.Infrastructure.Identity;
 
 namespace MuscleForge.Infrastructure.Persistence;
@@ -10,10 +12,13 @@ public sealed class MuscleForgeDbContext(DbContextOptions<MuscleForgeDbContext> 
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
     // Match .NET's Unicode whitespace validation independently of the database locale.
-    private const string NonWhitespacePattern =
+    internal const string NonWhitespacePattern =
         """U&'[^\0009-\000D\0020\0085\00A0\1680\2000-\200A\2028\2029\202F\205F\3000]'""";
 
     public DbSet<Exercise> Exercises => Set<Exercise>();
+    public DbSet<WorkoutTemplate> WorkoutTemplates => Set<WorkoutTemplate>();
+    public DbSet<WorkoutSession> WorkoutSessions => Set<WorkoutSession>();
+    public DbSet<WorkoutMutationReceipt> WorkoutMutationReceipts => Set<WorkoutMutationReceipt>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -25,6 +30,7 @@ public sealed class MuscleForgeDbContext(DbContextOptions<MuscleForgeDbContext> 
             user.ToTable("AspNetUsers", table =>
                 table.HasCheckConstraint("CK_AspNetUsers_WeightUnit_Supported", "\"WeightUnit\" IN ('kg', 'lb')"));
         });
+        builder.ConfigureWorkouts();
         builder.Entity<Exercise>(exercise =>
         {
             exercise.ToTable("Exercises", table =>
@@ -38,6 +44,7 @@ public sealed class MuscleForgeDbContext(DbContextOptions<MuscleForgeDbContext> 
                     "\"TrackingType\" = 'ExternalWeightAndReps'");
             });
             exercise.HasKey(x => x.Id);
+            exercise.HasAlternateKey(x => new { x.Id, x.OwnerId });
             exercise.Property(x => x.Name).IsRequired().HasMaxLength(Exercise.MaximumNameLength);
             exercise.Property(x => x.Equipment).IsRequired().HasMaxLength(Exercise.MaximumEquipmentLength);
             exercise.Property(x => x.TrackingType).HasConversion<string>().IsRequired().HasMaxLength(32);

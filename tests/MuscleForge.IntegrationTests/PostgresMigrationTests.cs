@@ -22,7 +22,8 @@ public sealed class PostgresMigrationTests(PostgresFixture postgres) : IClassFix
         await using var database = await postgres.CreateDatabaseAsync(CancellationToken);
         await using var context = database.CreateContext();
         var migrations = context.Database.GetMigrations().ToArray();
-        await context.GetService<IMigrator>().MigrateAsync(migrations[^2], CancellationToken);
+        await context.GetService<IMigrator>().MigrateAsync(
+            Assert.Single(migrations, name => name.EndsWith("_ExerciseCatalog", StringComparison.Ordinal)), CancellationToken);
         var id = Guid.NewGuid();
         await context.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO "AspNetUsers" ("Id", "UserName", "Email", "EmailConfirmed", "PhoneNumberConfirmed", "TwoFactorEnabled", "LockoutEnabled", "AccessFailedCount")
